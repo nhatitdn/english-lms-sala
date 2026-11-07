@@ -28,9 +28,13 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
   try {
     await signIn("credentials", { login, password, redirectTo: safeCallback(formData.get("callbackUrl")) });
   } catch (error) {
-    if (error instanceof AuthError) {
-      const code = (error instanceof CredentialsSignin ? error.code : "invalid") as LoginErrorCode;
+    if (error instanceof CredentialsSignin) {
+      const code = error.code as LoginErrorCode;
       return { error: LOGIN_ERROR_MESSAGES[code] ?? LOGIN_ERROR_MESSAGES.invalid, values: { login } };
+    }
+    if (error instanceof AuthError) {
+      // a server-side failure (database down, bad configuration…) must not look like a wrong password
+      return { error: "Hệ thống đang gặp lỗi, chưa đăng nhập được. Vui lòng thử lại sau hoặc báo quản trị viên.", values: { login } };
     }
     throw error; // includes the success redirect
   }

@@ -19,7 +19,9 @@ let cached: Env | undefined;
 /** Validated environment. Throws at first use with a readable message when misconfigured. */
 export function env(): Env {
   if (cached) return cached;
-  const parsed = schema.safeParse(process.env);
+  // `KEY=""` in .env means "not set" (e.g. CRON_SECRET before Phase 4), not "set to an empty value"
+  const values = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== ""));
+  const parsed = schema.safeParse(values);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
     throw new Error(`Invalid environment variables:\n${issues}`);
