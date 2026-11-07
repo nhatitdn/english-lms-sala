@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/*
+ * Sala English Corner — design tokens.
+ * Source of truth: brand/README.md + docs/UI_UX.md §2 (Design System "Sala English Corner").
+ */
+:root {
+  /* Brand */
+  --sala-orange: #fa7220;
+  --orange-700: #c2410c;
+  --orange-800: #9a3a0b;
+  --orange-50: #fff1e6;
+  --cream: #fff8ee;
+  --petal: #f3ebcf;
+  --gold: #c9a646;
+  --gold-700: #8a6a12;
+
+  /* Neutrals & functional */
+  --ink: #1f2a44;
+  --ink-muted: #526075;
+  --surface: #ffffff;
+  --sky-50: #eef5fc;
+  --sky-100: #dcebfa;
+  --blue-600: #2563eb;
+  --blue-700: #1d4ed8;
+  --line: #e2e8f0;
+  --success: #15803d;
+  --warning: #b45309;
+  --danger: #b91c1c;
+
+  /* Semantic aliases used by components */
+  --background: var(--sky-50);
+  --foreground: var(--ink);
+  --primary: var(--orange-700);
+  --primary-hover: var(--orange-800);
+  --primary-foreground: #ffffff;
+  --ring: var(--blue-600);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+
+  --shadow-card: 0 1px 2px rgb(31 42 68 / 0.06), 0 1px 3px rgb(31 42 68 / 0.04);
+  --shadow-raised: 0 8px 24px rgb(31 42 68 / 0.1);
+}
+
+@theme inline {
+  --color-sala-orange: var(--sala-orange);
+  --color-orange-700: var(--orange-700);
+  --color-orange-800: var(--orange-800);
+  --color-orange-50: var(--orange-50);
+  --color-cream: var(--cream);
+  --color-petal: var(--petal);
+  --color-gold: var(--gold);
+  --color-gold-700: var(--gold-700);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-surface: var(--surface);
+  --color-sky-50: var(--sky-50);
+  --color-sky-100: var(--sky-100);
+  --color-blue-600: var(--blue-600);
+  --color-blue-700: var(--blue-700);
+  --color-line: var(--line);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-raised: var(--shadow-raised);
+
+  --font-sans: "Be Vietnam Pro", system-ui, sans-serif;
+  --font-display: "Playfair Display", Georgia, serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
