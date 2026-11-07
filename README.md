@@ -11,7 +11,7 @@ Monolith Next.js (App Router) · TypeScript · Tailwind · shadcn/ui · PostgreS
 |---|---|
 | 0 — Phân tích & thiết kế | ✅ Hoàn thành |
 | 1 — Foundation | 🟡 Xong, chờ nghiệm thu (nhánh `phase-1-foundation`) |
-| 2 — Class & Content | ⚪ |
+| 2 — Class & Content | 🟡 Xong, chờ nghiệm thu (nhánh `phase-2-class-content`) |
 | 3 — Assignment & Grading | ⚪ |
 | 4 — Management | ⚪ |
 | 5 — Public website & Deployment | ⚪ |
@@ -66,6 +66,16 @@ npm run build && npm run test:e2e   # Playwright — cần DB dev đã seed demo
 ## Công nghệ
 
 Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · Tailwind CSS 4 · Radix UI (shadcn-style) · Prisma 7 + `@prisma/adapter-pg` · PostgreSQL 16 · Auth.js v5 · Argon2id · Zod 4 · Recharts · Vitest · Playwright.
+
+## Phase 2 đã có
+
+- **Lớp học:** tạo/sửa/lưu trữ lớp (mã, trình độ, độ tuổi, ngày học, sĩ số, phòng); phân công giáo viên chính/trợ giảng.
+- **Thành viên:** tìm & thêm học viên, nhập danh sách từ Excel (tự tạo tài khoản + mật khẩu tạm, tải file CSV kết quả), cho rời lớp, **chuyển lớp giữ nguyên lịch sử**, nhóm trong lớp.
+- **Lịch học định kỳ:** hệ thống tự sinh buổi học 8 tuần tới (giờ Việt Nam).
+- **Upload an toàn:** kiểm tra đuôi file + nội dung thật (magic bytes), giới hạn dung lượng theo cài đặt, tên file ngẫu nhiên ngoài thư mục web, **ảnh được xóa EXIF/GPS**, tải/phát qua API có kiểm tra quyền, hỗ trợ tua (HTTP Range).
+- **Thư viện tài liệu:** PDF, Word, PowerPoint, Excel, MP3, video, ảnh, link YouTube; tìm kiếm không dấu; chia sẻ giữa giáo viên; dùng lại cho nhiều bài giảng.
+- **Bài giảng:** soạn nội dung rich text (có chèn ảnh), phân loại 8 kỹ năng, chủ đề, nháp/xuất bản, chọn lớp được xem + hẹn giờ hiển thị, sao chép bài giảng.
+- **Luyện nghe:** trình phát audio thân thiện điện thoại (tua ±10 giây, tốc độ 0,5–2×, âm lượng, lặp A–B, điều khiển từ màn hình khóa), nhớ vị trí nghe, transcript (hiện ngay / sau khi nghe xong / ẩn), hình minh họa, thống kê ai đã nghe xong.
 
 ## Phase 1 đã có
 

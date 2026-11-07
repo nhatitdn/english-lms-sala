@@ -188,3 +188,7 @@ Ngoài ra việc "bài đã đến giờ giao chưa" luôn được tính lúc t
 | Font | Tự host từ gói `@fontsource` (Be Vietnam Pro, Playfair Display) | Không gọi Google Fonts lúc build/chạy |
 | Form | Server Actions + `useActionState`/`useTransition`, validate Zod ở server (bắt buộc) | Không thêm react-hook-form khi chưa cần |
 | Ràng buộc SQL riêng | Viết thêm cuối migration `init`; `prisma migrate diff` xác nhận không bị Prisma xoá | Partial unique index, CHECK, index tìm kiếm không dấu |
+| Upload | Body thô (`POST /api/uploads?purpose=…&name=…`), không dùng multipart; client dùng XHR để có thanh tiến trình | Stream thẳng xuống đĩa, không giữ cả file trong RAM, không cần thêm thư viện multipart |
+| Ảnh trong nội dung bài giảng | Lưu `fileId` trong JSON; cột `lessons.content_file_ids` để kiểm tra quyền xem ảnh | Học viên chỉ xem được ảnh thuộc bài giảng họ được phép xem |
+| Giáo viên xem bài giảng | Bài của mình (mọi trạng thái) + mọi bài đã xuất bản của giáo viên khác; chỉ tác giả/Admin sửa | Để giáo viên sao chép, dùng lại bài của nhau |
+| Bài nghe | Câu hỏi/chấm điểm Listening thuộc engine bài tập ở Phase 3; chế độ transcript "sau khi nộp bài" kích hoạt ở Phase 3 | Không xây hai hệ thống câu hỏi |

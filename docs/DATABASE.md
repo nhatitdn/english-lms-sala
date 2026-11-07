@@ -175,7 +175,8 @@ Tìm kiếm: index full-text `to_tsvector('simple', unaccent(title || descriptio
 | id | uuid PK | |
 | title | text | |
 | description | text? | |
-| content | jsonb | Tiptap JSON |
+| content | jsonb | Tiptap JSON (đã lọc qua allow-list) |
+| content_file_ids | uuid[] | ảnh nhúng trong nội dung — dùng để kiểm tra quyền xem file *(thêm ở Phase 2)* |
 | skill | enum `Skill` | VOCABULARY, GRAMMAR, LISTENING, SPEAKING, READING, WRITING, PRONUNCIATION, GENERAL |
 | tags | text[] | chủ đề |
 | status | enum (DRAFT, PUBLISHED, ARCHIVED) | |

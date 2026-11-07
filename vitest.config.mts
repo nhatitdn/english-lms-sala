@@ -22,6 +22,7 @@ export default defineConfig({
       AUTH_SECRET: "test-secret-test-secret-test-secret-123",
       CLIENT_IP_HEADER: "x-forwarded-for",
       NODE_ENV: "test",
+      UPLOAD_DIR: "/tmp/sala-test-uploads",
     },
   },
 });

@@ -83,7 +83,25 @@ Diễn tập restore trên VPS là điều kiện nghiệm thu #12.
 - App không lên → xem log → quay lại image trước (`docker compose up -d` với tag cũ). Migration lỗi → restore bản backup tạo ở bước 1 của deploy.
 - Đầy ổ đĩa → `docker system prune`, kiểm tra thư mục backup, dọn file mồ côi.
 
-## 9. Health check
+## 9. Phục vụ file (audio, video, tài liệu)
+
+Ứng dụng kiểm tra quyền rồi trả header `X-Accel-Redirect`; Nginx đọc file từ thư mục upload (mount chỉ đọc, `noexec`) và tự xử lý tua (HTTP Range). Đặt `FILE_SERVING=x-accel` trong `.env` của production.
+
+```nginx
+# docker/nginx/conf.d/app.conf (trích)
+location /_protected/ {
+    internal;                      # không truy cập trực tiếp được từ trình duyệt
+    alias /srv/uploads/;           # volume uploads, mount read-only vào container nginx
+    add_header X-Content-Type-Options nosniff;
+}
+location = /api/uploads {
+    client_max_body_size 110m;     # video tối đa 90–100 MB
+    proxy_request_buffering off;   # stream thẳng vào app
+    proxy_pass http://app:3000;
+}
+```
+
+## 10. Health check
 - `GET /api/health` kiểm tra kết nối DB và quyền ghi thư mục upload.
 - Docker `healthcheck` cho app và postgres; Nginx chỉ chuyển request khi app healthy.
 - Tùy chọn: UptimeRobot (gói miễn phí) gọi `/api/health` mỗi 5 phút.

@@ -1,6 +1,7 @@
 "use client";
 
-import { Home, LayoutDashboard, Palette, UserRound, Users } from "lucide-react";
+import { BookOpen, Ellipsis, Home, LayoutDashboard, Library, Palette, School, UserRound, Users } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { NavIcon, NavItem } from "@/lib/navigation";
@@ -12,6 +13,9 @@ const ICONS: Record<NavIcon, React.ComponentType<{ className?: string }>> = {
   palette: Palette,
   profile: UserRound,
   home: Home,
+  classes: School,
+  lessons: BookOpen,
+  library: Library,
 };
 
 function isActive(pathname: string, item: NavItem) {
@@ -46,13 +50,17 @@ export function SidebarNav({ items }: { items: NavItem[] }) {
 
 export function BottomNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
+  // at most 5 slots: when there are more items, the 5th becomes a "Thêm" menu
+  const primary = items.length > 5 ? items.slice(0, 4) : items;
+  const overflow = items.length > 5 ? items.slice(4) : [];
+  const overflowActive = overflow.some((i) => isActive(pathname, i));
   return (
     <nav
       aria-label="Điều hướng chính"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
     >
       <ul className="mx-auto flex max-w-lg">
-        {items.slice(0, 5).map((item) => {
+        {primary.map((item) => {
           const Icon = ICONS[item.icon];
           const active = isActive(pathname, item);
           return (
@@ -68,6 +76,28 @@ export function BottomNav({ items }: { items: NavItem[] }) {
             </li>
           );
         })}
+        {overflow.length > 0 && (
+          <li className="flex-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger className={cn("flex h-16 w-full flex-col items-center justify-center gap-1 text-xs font-medium", overflowActive ? "text-orange-700" : "text-ink-muted")}>
+                <Ellipsis className="size-6" />
+                Thêm
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" side="top">
+                {overflow.map((item) => {
+                  const Icon = ICONS[item.icon];
+                  return (
+                    <DropdownMenuItem key={item.href} asChild>
+                      <Link href={item.href}>
+                        <Icon /> {item.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </li>
+        )}
       </ul>
     </nav>
   );
