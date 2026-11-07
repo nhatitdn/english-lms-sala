@@ -8,7 +8,7 @@ type Rule = { exts: string[]; mimes: string[]; limitKey: keyof UploadLimits; lab
  * Allow-list of uploadable files. The extension AND the real type detected from the file's bytes
  * must both be in the same rule. Anything else is rejected.
  */
-export const FILE_RULES: Record<Exclude<FileKind, "RECORDING">, Rule> = {
+export const FILE_RULES: Record<FileKind, Rule> = {
   IMAGE: { exts: ["jpg", "jpeg", "png", "webp"], mimes: ["image/jpeg", "image/png", "image/webp"], limitKey: "imageMb", label: "Ảnh (JPG, PNG, WEBP)" },
   DOCUMENT: {
     exts: ["pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx"],
@@ -29,6 +29,17 @@ export const FILE_RULES: Record<Exclude<FileKind, "RECORDING">, Rule> = {
     label: "Âm thanh (MP3, M4A, WAV, OGG)",
   },
   VIDEO: { exts: ["mp4", "webm", "mov"], mimes: ["video/mp4", "video/webm", "video/quicktime"], limitKey: "videoMb", label: "Video (MP4, WEBM, MOV)" },
+  /**
+   * Speaking answers recorded in the browser. Chrome/Android produce WebM (Opus), iOS Safari produces
+   * MP4/M4A (AAC) — magic-byte detection reports these as video/* containers, so both are accepted.
+   * Only reachable through the "recording" purpose (extensions overlap with AUDIO/VIDEO).
+   */
+  RECORDING: {
+    exts: ["webm", "ogg", "m4a", "mp4", "mp3"],
+    mimes: ["audio/webm", "video/webm", "audio/ogg", "audio/opus", "audio/mp4", "audio/x-m4a", "video/mp4", "audio/mpeg", "audio/aac"],
+    limitKey: "audioMb",
+    label: "Bản ghi âm",
+  },
 };
 
 /** Which kinds each upload purpose accepts. */
@@ -37,7 +48,15 @@ export const PURPOSE_KINDS = {
   "lesson-image": ["IMAGE"],
   audio: ["AUDIO"],
   "audio-cover": ["IMAGE"],
-} as const satisfies Record<string, readonly Exclude<FileKind, "RECORDING">[]>;
+  // Phase 3 — assignments
+  "question-media": ["IMAGE", "AUDIO"],
+  "submission-file": ["IMAGE", "DOCUMENT"],
+  "submission-image": ["IMAGE"],
+  recording: ["RECORDING"],
+} as const satisfies Record<string, readonly FileKind[]>;
+
+/** Purposes students may upload for (everything else is staff-only). */
+export const STUDENT_PURPOSES: readonly UploadPurpose[] = ["submission-file", "submission-image", "recording"];
 export type UploadPurpose = keyof typeof PURPOSE_KINDS;
 
 export function extensionOf(name: string): string {
@@ -45,8 +64,9 @@ export function extensionOf(name: string): string {
   return m ? m[1]! : "";
 }
 
-export function kindForExtension(ext: string): Exclude<FileKind, "RECORDING"> | null {
-  for (const [kind, rule] of Object.entries(FILE_RULES)) if (rule.exts.includes(ext)) return kind as Exclude<FileKind, "RECORDING">;
+export function kindForExtension(ext: string, purpose?: UploadPurpose): FileKind | null {
+  if (purpose === "recording") return FILE_RULES.RECORDING.exts.includes(ext) ? "RECORDING" : null;
+  for (const [kind, rule] of Object.entries(FILE_RULES)) if (kind !== "RECORDING" && rule.exts.includes(ext)) return kind as FileKind;
   return null;
 }
 

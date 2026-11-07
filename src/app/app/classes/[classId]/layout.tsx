@@ -24,6 +24,8 @@ export default async function ClassLayout({ children, params }: LayoutProps<"/ap
           { slug: "lessons", label: "Bài giảng" },
           { slug: "materials", label: "Tài liệu" },
           { slug: "audio", label: "Luyện nghe" },
+          { slug: "assignments", label: "Bài tập" },
+          { slug: "gradebook", label: access.canManage ? "Bảng điểm" : "Điểm của tôi" },
         ]
       : []),
     { slug: "schedule", label: "Lịch học" },

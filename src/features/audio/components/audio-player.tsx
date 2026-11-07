@@ -39,6 +39,8 @@ export type AudioPlayerProps = {
   transcriptMode: "ALWAYS" | "AFTER_COMPLETE" | "AFTER_SUBMIT" | "HIDDEN";
   /** students: report progress; staff: preview only, transcript always visible */
   trackProgress: boolean;
+  /** the student has handed in this item's Listening Quiz (for transcriptMode AFTER_SUBMIT) */
+  quizSubmitted?: boolean;
 };
 
 /**
@@ -46,7 +48,7 @@ export type AudioPlayerProps = {
  * volume, A–B repeat, lock-screen controls, remembers the position and reports listening progress.
  */
 export function AudioPlayer(props: AudioPlayerProps) {
-  const { audioLessonId, src, title, coverSrc, initialPosition = 0, initiallyCompleted = false, transcript, transcriptMode, trackProgress } = props;
+  const { audioLessonId, src, title, coverSrc, initialPosition = 0, initiallyCompleted = false, transcript, transcriptMode, trackProgress, quizSubmitted = false } = props;
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
@@ -171,8 +173,9 @@ export function AudioPlayer(props: AudioPlayerProps) {
     }
   }
 
-  const transcriptAllowed = !trackProgress || transcriptMode === "ALWAYS" || (transcriptMode === "AFTER_COMPLETE" && completed);
-  const hasTranscript = !!transcript && transcriptMode !== "HIDDEN";
+  const transcriptAllowed = !trackProgress || transcriptMode === "ALWAYS" || (transcriptMode === "AFTER_COMPLETE" && completed) || (transcriptMode === "AFTER_SUBMIT" && quizSubmitted);
+  // AFTER_SUBMIT: the server does not send the transcript before the quiz is handed in — still show the locked button
+  const hasTranscript = (!!transcript || (transcriptMode === "AFTER_SUBMIT" && trackProgress)) && transcriptMode !== "HIDDEN";
   const pct = duration ? (time / duration) * 100 : 0;
 
   return (
@@ -334,13 +337,13 @@ export function AudioPlayer(props: AudioPlayerProps) {
           {hasTranscript && (
             <button
               type="button"
-              disabled={!transcriptAllowed}
+              disabled={!transcriptAllowed || !transcript}
               onClick={() => setShowTranscript((v) => !v)}
               aria-expanded={showTranscript}
               className="inline-flex h-9 items-center gap-1.5 rounded-md border border-line px-3 text-sm text-ink disabled:opacity-60"
             >
               <FileText className="size-4" />
-              {transcriptAllowed ? (showTranscript ? "Ẩn transcript" : "Xem transcript") : "Transcript mở sau khi nghe xong"}
+              {transcriptAllowed && transcript ? (showTranscript ? "Ẩn transcript" : "Xem transcript") : transcriptMode === "AFTER_SUBMIT" ? "Transcript mở sau khi nộp bài nghe" : "Transcript mở sau khi nghe xong"}
             </button>
           )}
         </div>

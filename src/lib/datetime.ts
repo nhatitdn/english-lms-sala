@@ -43,3 +43,13 @@ export function localDayRange(now: Date = new Date()): { start: Date; end: Date 
   const end = new TZDate(local.getFullYear(), local.getMonth(), local.getDate() + 1, APP_TIMEZONE);
   return { start: new Date(start.getTime()), end: new Date(end.getTime()) };
 }
+
+/** Date → value for <input type="datetime-local"> in Vietnam time ("2026-11-07T21:00"). */
+export function toLocalInput(date: Date | string | number | null | undefined): string {
+  return date ? format(toLocal(date), "yyyy-MM-dd'T'HH:mm") : "";
+}
+
+/** <input type="datetime-local"> value (Vietnam time) → ISO string with offset, or undefined if empty. */
+export function localInputToIso(value: FormDataEntryValue | null | undefined): string | undefined {
+  return typeof value === "string" && value ? `${value.length === 16 ? `${value}:00` : value}+07:00` : undefined;
+}

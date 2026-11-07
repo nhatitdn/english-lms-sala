@@ -57,7 +57,7 @@ export async function storeUpload(params: {
 }): Promise<StoredFile> {
   const originalName = sanitizeFileName(params.originalName);
   const ext = extensionOf(originalName);
-  const kind = kindForExtension(ext);
+  const kind = kindForExtension(ext, params.purpose);
   const allowed = PURPOSE_KINDS[params.purpose] as readonly string[];
   if (!kind || !allowed.includes(kind)) {
     throw new AppError("VALIDATION_ERROR", `Loại file .${ext || "?"} không được phép ở đây.`);

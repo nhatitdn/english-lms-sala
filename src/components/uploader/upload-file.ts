@@ -2,7 +2,7 @@
 
 import type { UploadPurpose } from "@/server/storage/rules";
 
-export type UploadedFile = { id: string; kind: "IMAGE" | "DOCUMENT" | "AUDIO" | "VIDEO"; originalName: string; mimeType: string; sizeBytes: number };
+export type UploadedFile = { id: string; kind: "IMAGE" | "DOCUMENT" | "AUDIO" | "VIDEO" | "RECORDING"; originalName: string; mimeType: string; sizeBytes: number };
 
 /** Upload one file as a raw body with progress (XHR — fetch has no upload progress). */
 export function uploadFile(file: File, purpose: UploadPurpose, onProgress?: (ratio: number) => void): Promise<UploadedFile> {

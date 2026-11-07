@@ -61,6 +61,7 @@ export default async function EditLessonPage({ params }: PageProps<"/app/lessons
             transcript: docToLines(a.transcript),
             transcriptMode: a.transcriptMode,
             completeThreshold: a.completeThreshold,
+            assignmentId: a.assignmentId,
           })),
         }}
       />

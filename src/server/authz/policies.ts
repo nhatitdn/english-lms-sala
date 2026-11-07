@@ -142,10 +142,71 @@ export async function canAccessFile(user: CurrentUser, fileId: string): Promise<
     });
     if (material) return file;
   }
-  const [attached, audio, embedded] = await Promise.all([
+  const assignmentVisible = visibleAssignmentWhere(user);
+  const [attached, audio, embedded, questionMedia, quizAudio, submitted] = await Promise.all([
     db.lessonAttachment.findFirst({ where: { material: { fileId, deletedAt: null }, lesson: lessonVisible }, select: { id: true } }),
     db.audioLesson.findFirst({ where: { OR: [{ audioFileId: fileId }, { coverFileId: fileId }], lesson: lessonVisible }, select: { id: true } }),
     db.lesson.findFirst({ where: { AND: [lessonVisible, { contentFileIds: { has: fileId } }] }, select: { id: true } }),
+    // Phase 3: question pictures/audio, the audio of a Listening Quiz, and students' submitted files (for their teachers)
+    db.question.findFirst({ where: { mediaFileId: fileId, assignment: assignmentVisible }, select: { id: true } }),
+    db.audioLesson.findFirst({ where: { OR: [{ audioFileId: fileId }, { coverFileId: fileId }], assignment: assignmentVisible }, select: { id: true } }),
+    user.role === "TEACHER" && user.teacherId
+      ? db.submissionFile.findFirst({
+          where: { fileId, submission: { class: { deletedAt: null, teachers: { some: { teacherId: user.teacherId } } } } },
+          select: { id: true },
+        })
+      : null,
   ]);
-  return attached || audio || embedded ? file : null;
+  return attached || audio || embedded || questionMedia || quizAudio || submitted ? file : null;
+}
+
+// ───────────────────────── Assignments ─────────────────────────
+
+/** Prisma filter: published assignments currently given to this student (class / group / individual target). */
+export function assignedToStudentWhere(studentId: string, now: Date = new Date()): Prisma.AssignmentWhereInput {
+  return {
+    deletedAt: null,
+    status: { in: ["PUBLISHED", "CLOSED"] },
+    targets: {
+      some: {
+        availableAt: { lte: now },
+        class: { deletedAt: null, members: { some: { studentId, status: "ACTIVE" } } },
+        OR: [{ targetType: "CLASS" }, { targetType: "GROUP", group: { members: { some: { studentId } } } }, { targetType: "STUDENT", studentId }],
+      },
+    },
+  };
+}
+
+/** Prisma filter: assignments this user may open (staff see their own and those given to classes they teach). */
+export function visibleAssignmentWhere(user: CurrentUser, now: Date = new Date()): Prisma.AssignmentWhereInput {
+  switch (user.role) {
+    case "ADMIN":
+      return { deletedAt: null };
+    case "TEACHER":
+      return {
+        deletedAt: null,
+        OR: [{ createdBy: user.id }, { targets: { some: { class: { deletedAt: null, teachers: { some: { teacherId: user.teacherId ?? "" } } } } } }],
+      };
+    case "STUDENT":
+      return assignedToStudentWhere(user.studentId ?? "", now);
+    default:
+      return { id: "00000000-0000-0000-0000-000000000000" };
+  }
+}
+
+/** Only the author or an admin edits an assignment's questions and settings. */
+export async function canEditAssignment(user: CurrentUser, assignmentId: string): Promise<boolean> {
+  if (user.role !== "ADMIN" && user.role !== "TEACHER") return false;
+  const row = await db.assignment.findFirst({
+    where: { id: assignmentId, deletedAt: null, ...(user.role === "ADMIN" ? {} : { createdBy: user.id }) },
+    select: { id: true },
+  });
+  return row !== null;
+}
+
+/** Staff who may see results of an assignment (author, admin, teachers of a targeted class). */
+export async function canViewAssignmentResults(user: CurrentUser, assignmentId: string): Promise<boolean> {
+  if (user.role !== "ADMIN" && user.role !== "TEACHER") return false;
+  const row = await db.assignment.findFirst({ where: { AND: [{ id: assignmentId }, visibleAssignmentWhere(user)] }, select: { id: true } });
+  return row !== null;
 }

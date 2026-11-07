@@ -121,10 +121,10 @@ Giới hạn mặc định (sửa trong Cài đặt hệ thống): ảnh 10 MB �
 ## 6. Làm bài & chống mất dữ liệu
 
 - Bắt đầu làm bài → server tạo `submission` trạng thái `IN_PROGRESS`, ghi `started_at` và tính `deadline_at = min(started_at + time_limit, hạn nộp có tính gia hạn)`. **Đồng hồ do server quyết định**, client chỉ hiển thị.
-- Tự lưu: mỗi thay đổi lưu ngay vào `localStorage` (khóa theo submissionId); gửi lên server sau 2 giây không gõ và khi chuyển câu, dùng `PUT /api/submissions/:id/autosave` kèm `clientVersion` để tránh ghi đè bản mới bằng bản cũ.
+- Tự lưu: mỗi thay đổi lưu ngay vào `localStorage` (khóa theo submissionId); gửi lên server ~1,5 giây sau thay đổi cuối, dùng `PUT /api/submissions/:id/answers` kèm `version` (sai version → 409, tránh ghi đè bản mới bằng bản cũ từ tab khác).
 - Mất mạng: hiển thị banner "Đang offline – bài làm vẫn được lưu trên máy", tự đồng bộ lại khi có mạng (`online` event). Khi rời trang dùng `fetch(..., { keepalive: true })`.
-- Tải lại trang: lấy bản server, so với bản local (theo version/thời gian), dùng bản mới hơn.
-- Nộp bài: idempotent (gửi lại không tạo bài nộp thứ hai). Hết giờ: server tự đóng bài với câu trả lời đã lưu gần nhất (kiểm tra lúc request tiếp theo + tác vụ cron).
+- Tải lại trang: lấy bản server, rồi áp các câu còn "chưa lưu" trong `localStorage` lên trên (chỉ các câu chưa gửi được).
+- Nộp bài: idempotent (gửi lại không tạo bài nộp thứ hai). Hết giờ: server tự đóng bài với câu trả lời đã lưu gần nhất (kiểm tra lúc request tiếp theo; không cần cron).
 - **Đáp án không bao giờ gửi xuống client** khi làm bài. Chấm tự động chạy ở server.
 
 ## 7. Tác vụ định kỳ (không cần container riêng)
@@ -191,4 +191,10 @@ Ngoài ra việc "bài đã đến giờ giao chưa" luôn được tính lúc t
 | Upload | Body thô (`POST /api/uploads?purpose=…&name=…`), không dùng multipart; client dùng XHR để có thanh tiến trình | Stream thẳng xuống đĩa, không giữ cả file trong RAM, không cần thêm thư viện multipart |
 | Ảnh trong nội dung bài giảng | Lưu `fileId` trong JSON; cột `lessons.content_file_ids` để kiểm tra quyền xem ảnh | Học viên chỉ xem được ảnh thuộc bài giảng họ được phép xem |
 | Giáo viên xem bài giảng | Bài của mình (mọi trạng thái) + mọi bài đã xuất bản của giáo viên khác; chỉ tác giả/Admin sửa | Để giáo viên sao chép, dùng lại bài của nhau |
-| Bài nghe | Câu hỏi/chấm điểm Listening thuộc engine bài tập ở Phase 3; chế độ transcript "sau khi nộp bài" kích hoạt ở Phase 3 | Không xây hai hệ thống câu hỏi |
+| Bài nghe | Listening Quiz = bài tập loại `LISTENING` gắn `audio_lessons.assignment_id`; transcript "sau khi nộp bài nghe" bị loại khỏi dữ liệu gửi cho học viên cho tới khi nộp | Không xây hai hệ thống câu hỏi |
+| Mô hình câu hỏi (Phase 3) | `src/features/assignments/questions.ts`: hàm thuần (schema soạn câu hỏi, lưu ↔ đọc, bản cho học viên đã bỏ đáp án, chấm tự động) — dùng chung server/client/seed, có unit test từng dạng | Một nơi duy nhất quyết định đáp án đúng & cách tính điểm |
+| Câu hỏi bị khóa | Khi đã có bài làm, không sửa/xóa câu hỏi (chỉ đổi thứ tự); dùng *Nhân bản* | Câu trả lời đã lưu tham chiếu id lựa chọn; sửa sẽ làm sai điểm |
+| Tự lưu bài làm | Route Handler `PUT /api/submissions/:id/answers` (không phải Server Action) | Để gửi được bằng `fetch(..., { keepalive: true })` khi đóng trang |
+| Hết giờ | Không cần cron: bài quá `deadline_at` (+60 giây trễ mạng) được nộp tự động lần kế tiếp có ai chạm tới (mở bài, tự lưu, bắt đầu lại); thời điểm nộp = `deadline_at` | Đơn giản, không thêm tiến trình |
+| Ghi âm | Loại file `RECORDING` chỉ qua mục đích upload `recording`; chấp nhận WebM/Ogg (Android, Chrome) và MP4/M4A (iPhone) theo magic bytes | iOS không ghi WebM |
+| Bảng điểm | Điểm trung bình quy về thang 10, chỉ tính bài đã chấm; CSV có BOM UTF-8 cho Excel | Bài tập có thể khác thang điểm |

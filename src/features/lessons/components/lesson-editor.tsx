@@ -31,6 +31,7 @@ import {
   updateLessonAction,
   upsertAudioLessonAction,
 } from "../actions";
+import { ListeningQuizButton } from "@/features/assignments/components/assignment-actions";
 
 export type EditorLesson = {
   id: string;
@@ -53,6 +54,8 @@ export type EditorLesson = {
     transcript: string;
     transcriptMode: keyof typeof TRANSCRIPT_MODE_LABELS;
     completeThreshold: number;
+    /** Listening Quiz (Phase 3) */
+    assignmentId: string | null;
   }[];
 };
 
@@ -407,7 +410,8 @@ function AudioCard({ lesson }: { lesson: EditorLesson }) {
                     {a.audioName} · transcript: {TRANSCRIPT_MODE_LABELS[a.transcriptMode].toLowerCase()}
                   </span>
                 </span>
-                <span className="flex shrink-0">
+                <span className="flex shrink-0 items-center">
+                  <ListeningQuizButton lessonId={lesson.id} audioLessonId={a.id} assignmentId={a.assignmentId} />
                   <Button size="sm" variant="ghost" onClick={() => setStatsFor({ id: a.id, title: a.title })} aria-label={`Thống kê ${a.title}`}>
                     <BarChart3 />
                   </Button>

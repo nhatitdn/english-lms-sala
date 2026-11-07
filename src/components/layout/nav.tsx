@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Ellipsis, Home, LayoutDashboard, Library, Palette, School, UserRound, Users } from "lucide-react";
+import { BookOpen, ClipboardCheck, ClipboardList, Ellipsis, Home, LayoutDashboard, Library, Palette, School, UserRound, Users } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -16,6 +16,8 @@ const ICONS: Record<NavIcon, React.ComponentType<{ className?: string }>> = {
   classes: School,
   lessons: BookOpen,
   library: Library,
+  assignments: ClipboardList,
+  grading: ClipboardCheck,
 };
 
 function isActive(pathname: string, item: NavItem) {
@@ -54,6 +56,8 @@ export function BottomNav({ items }: { items: NavItem[] }) {
   const primary = items.length > 5 ? items.slice(0, 4) : items;
   const overflow = items.length > 5 ? items.slice(4) : [];
   const overflowActive = overflow.some((i) => isActive(pathname, i));
+  // focus mode while doing an assignment: the attempt screen has its own bottom bar (progress, save state, submit)
+  if (pathname.startsWith("/app/do/")) return null;
   return (
     <nav
       aria-label="Điều hướng chính"

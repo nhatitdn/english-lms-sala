@@ -26,7 +26,7 @@ export async function getAdminDashboard(user: CurrentUser) {
       select: { id: true, fullName: true, role: true, createdAt: true },
     }),
   ]);
-  const notSubmitted = work.filter(isPending).length;
+  const notSubmitted = work.filter((w) => isPending(w)).length;
   return { classes, teachers, students, publishedAssignments, waitingGrade, notSubmitted, recentUsers };
 }
 
@@ -147,7 +147,7 @@ export async function getStudentDashboard(user: CurrentUser) {
     }),
   ]);
 
-  const pending = work.filter(isPending);
+  const pending = work.filter((w) => isPending(w));
   const todo = pending.sort((a, b) => (a.dueAt?.getTime() ?? Infinity) - (b.dueAt?.getTime() ?? Infinity));
   const newWork = pending.filter((w) => now.getTime() - w.availableAt.getTime() < 3 * DAY);
   const dueSoon = pending.filter((w) => w.dueAt && w.dueAt.getTime() > now.getTime() && w.dueAt.getTime() - now.getTime() < 2 * DAY);
@@ -215,7 +215,7 @@ export async function getParentDashboard(user: CurrentUser) {
       attendanceRate: totalMarked ? attended / totalMarked : null,
       absences: att.filter((a) => a.status === "ABSENT").reduce((n, a) => n + a._count._all, 0),
       averageScore: avg === null ? null : Math.round(avg * 10) / 10,
-      pending: myWork.filter(isPending),
+      pending: myWork.filter((w) => isPending(w)),
       recentGrades: myGrades.slice(0, 3),
       feedback: feedback.filter((f) => f.studentId === s.id).slice(0, 2),
     };
