@@ -4,6 +4,9 @@
  * All demo accounts use the password "demo1234".
  */
 import { TZDate } from "@date-fns/tz";
+import { createHash, randomUUID } from "node:crypto";
+import { copyFileSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { hashPassword } from "../../src/server/auth/password";
 import { createScriptClient } from "./client";
 
@@ -23,6 +26,30 @@ function guard() {
 function vn(daysFromToday: number, hour: number, minute = 0): Date {
   const now = new TZDate(new Date(), TZ);
   return new Date(new TZDate(now.getFullYear(), now.getMonth(), now.getDate() + daysFromToday, hour, minute, TZ).getTime());
+}
+
+/** Copy a fixture into the upload store and register it (demo only — real uploads go through /api/uploads). */
+function demoFile(db: ReturnType<typeof createScriptClient>, fixture: string, kind: "AUDIO" | "DOCUMENT", mimeType: string, uploadedBy: string, originalName: string) {
+  const src = join(process.cwd(), "tests/fixtures", fixture);
+  const ext = fixture.split(".").pop()!;
+  const id = randomUUID();
+  const storageKey = `private/demo/${id}.${ext}`;
+  const dest = resolve(process.env.UPLOAD_DIR ?? "./data/uploads", storageKey);
+  mkdirSync(dirname(dest), { recursive: true });
+  copyFileSync(src, dest);
+  return db.file.create({
+    data: {
+      id,
+      storageKey,
+      kind,
+      mimeType,
+      extension: ext,
+      originalName,
+      sizeBytes: BigInt(statSync(dest).size),
+      sha256: createHash("sha256").update(readFileSync(dest)).digest("hex"),
+      uploadedBy,
+    },
+  });
 }
 
 function timeOfDay(hour: number, minute = 0): Date {
@@ -279,6 +306,50 @@ async function main() {
         { userId: (await db.student.findUniqueOrThrow({ where: { id: minhAnh.id } })).userId, type: "ASSIGNMENT_GRADED", title: "Unit 2 Quiz đã được chấm: 9/10", link: "/app/student" },
       ],
     });
+
+    // Phase 2: a published lesson with a listening item and a PDF, plus a draft
+    const mp3 = await demoFile(db, "sample.mp3", "AUDIO", "audio/mpeg", lan.id, "family-listening.mp3");
+    const pdf = await demoFile(db, "sample.pdf", "DOCUMENT", "application/pdf", lan.id, "Unit 3 - Worksheet.pdf");
+    const worksheet = await db.learningMaterial.create({ data: { title: "Unit 3 — Worksheet", type: "DOCUMENT", fileId: pdf.id, skill: "VOCABULARY", tags: ["family", "unit 3"], ownerId: lan.id } });
+    const song = await db.learningMaterial.create({ data: { title: "Family song (YouTube)", type: "YOUTUBE", url: "https://www.youtube.com/watch?v=FHaObkHEkHQ", skill: "LISTENING", tags: ["family", "song"], ownerId: lan.id } });
+    const p = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
+    await db.lesson.create({
+      data: {
+        title: "Unit 3 — My family",
+        description: "Từ vựng về các thành viên trong gia đình và luyện nghe giới thiệu gia đình.",
+        skill: "VOCABULARY",
+        tags: ["family", "unit 3"],
+        status: "PUBLISHED",
+        publishedAt: vn(-1, 8),
+        authorId: lan.id,
+        content: {
+          type: "doc",
+          content: [
+            { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Từ vựng" }] },
+            {
+              type: "bulletList",
+              content: ["mother — mẹ", "father — bố", "brother — anh/em trai", "sister — chị/em gái", "grandparents — ông bà"].map((t) => ({ type: "listItem", content: [p(t)] })),
+            },
+            { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Mẫu câu" }] },
+            { type: "paragraph", content: [{ type: "text", text: "This is my mother. ", marks: [{ type: "bold" }] }, { type: "text", text: "She is a teacher." }] },
+            { type: "blockquote", content: [p("Bài tập về nhà: vẽ cây gia đình và giới thiệu 3 thành viên bằng tiếng Anh.")] },
+          ],
+        },
+        classes: { create: { classId: starter.id } },
+        attachments: { create: [{ materialId: worksheet.id, sortOrder: 1 }, { materialId: song.id, sortOrder: 2 }] },
+        audioLessons: {
+          create: {
+            title: "Listening — Meet my family",
+            audioFileId: mp3.id,
+            instructions: { type: "doc", content: [p("Nghe 2 lần. Lần 1 nghe ý chính, lần 2 ghi lại tên các thành viên.")] },
+            transcript: { type: "doc", content: [p("Hi, I'm Anna. This is my family."), p("This is my father. His name is Tom."), p("And this is my mother, Lucy.")] },
+            transcriptMode: "AFTER_COMPLETE",
+            completeThreshold: 80,
+          },
+        },
+      },
+    });
+    await db.lesson.create({ data: { title: "Unit 4 — My house (nháp)", skill: "GENERAL", authorId: lan.id, classes: { create: { classId: starter.id } } } });
 
     console.log("Demo data created. Accounts (password: demo1234):");
     console.log("  admin.demo · gv.lan · gv.minh · hv.minhanh · hv.quocbao · hv.giahan · hv.ducthinh · hv.thao · ph.huong");

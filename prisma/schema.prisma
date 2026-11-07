@@ -593,6 +593,8 @@ model Lesson {
   title        String
   description  String?
   content      Json?
+  /// Files (images) embedded in the rich-text content — used for access checks.
+  contentFileIds String[]   @default([]) @map("content_file_ids") @db.Uuid
   skill        Skill        @default(GENERAL)
   tags         String[]     @default([])
   status       LessonStatus @default(DRAFT)
