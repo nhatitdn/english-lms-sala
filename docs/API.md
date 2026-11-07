@@ -22,8 +22,8 @@
 | `POST /api/uploads` | đã đăng nhập (theo `purpose`) | multipart: `file`, `purpose` (`lesson`, `audio`, `submission`, `avatar`, `cms`…). Trả `{ fileId, kind, size, durationSec? }` |
 | `GET /api/files/:id` | `canAccessFile` | Phát/tải file. Production trả `X-Accel-Redirect`; hỗ trợ Range. `?download=1` để tải về |
 | `GET /media/:id/:size` | công khai | Ảnh PUBLIC đã xử lý (website), cache dài hạn |
-| `GET /api/submissions/:id` | chủ bài làm | Trạng thái + câu trả lời đã lưu (để khôi phục khi tải lại trang) |
-| `PUT /api/submissions/:id/autosave` | chủ bài làm | Body `{ version, answers: [{ questionId, answer }] }` → `{ version, savedAt }`; 409 nếu version cũ hơn |
+| `PUT /api/submissions/:id/answers` | học viên chủ bài làm | Tự lưu. Body `{ version, answers: { [questionId]: answer } }` → `{ version, savedAt }`; 409 `{ reason: "version", version }` nếu tab/thiết bị khác đã lưu bản mới hơn; 409 `{ reason: "closed" }` nếu bài đã nộp/hết giờ. Kiểm tra Origin |
+| `GET /api/classes/:id/gradebook` | ADMIN, GV của lớp | Bảng điểm CSV (UTF-8 BOM, mở được bằng Excel) |
 | `POST /api/audio-progress` | học viên | `{ audioLessonId, positionSec, listenedSec }` — gửi định kỳ & khi rời trang |
 | `GET /api/notifications` | đã đăng nhập | Danh sách + số chưa đọc (client hỏi lại mỗi 60 giây khi tab đang mở) |
 | `GET /api/calendar?from&to&classId?` | theo vai trò | Buổi học + hạn nộp trong khoảng thời gian (cho lịch tuần/tháng) |
@@ -44,9 +44,11 @@
 | **lessons** | `createLesson`, `updateLesson`, `publishLesson`, `unpublishLesson`, `duplicateLesson`, `setLessonClasses`, `deleteLesson` | GV (bài của mình / lớp mình), ADMIN |
 | **materials** | `createMaterial`, `updateMaterial`, `deleteMaterial`, `attachMaterial` | GV, ADMIN |
 | **audio** | `createAudioLesson`, `updateAudioLesson` | GV, ADMIN |
-| **assignments** | `createAssignment`, `updateAssignment`, `upsertQuestions`, `publishAssignment`, `assignTargets`, `extendDeadline`, `closeAssignment`, `duplicateAssignment`, `releaseAnswers` | GV của lớp, ADMIN |
-| **submissions** | `startAttempt`, `submitAttempt` | STUDENT (bài được giao cho mình) |
-| **grading** | `gradeSubmission`, `gradeAnswer`, `addFeedback`, `requestRevision`, `allowResubmit`, `excuseSubmission` | GV của lớp, ADMIN |
+| **assignments** | `createAssignmentAction`, `updateAssignmentSettingsAction`, `saveQuestionAction`, `deleteQuestionAction`, `moveQuestionAction`, `setAssignmentStatusAction` (publish/unpublish/close/reopen), `deleteAssignmentAction`, `duplicateAssignmentAction`, `releaseAnswersAction`, `createListeningQuizAction` | Tác giả bài tập, ADMIN |
+| | `addTargetAction`, `removeTargetAction` | Tác giả bài tập **và** GV của lớp được giao |
+| | `grantExtensionAction`, `excuseStudentAction` | ADMIN, GV của lớp mà học viên nhận bài |
+| **submissions** | `startAttemptAction`, `submitAttemptAction` | STUDENT (bài được giao cho mình) |
+| **grading** | `gradeSubmissionAction` — điểm từng câu, nhận xét từng câu/chung, sửa tổng điểm (bắt buộc lý do), yêu cầu làm lại | ADMIN, GV của lớp (học viên gọi → FORBIDDEN, có test) |
 | **announcements** | `createAnnouncement`, `updateAnnouncement`, `deleteAnnouncement` | GV (lớp mình), ADMIN (toàn trung tâm) |
 | **notifications** | `markRead`, `markAllRead` | chủ thông báo |
 | **cms** | `upsertCourse`, `upsertPost`, `publishPost`, `upsertTestimonial`, `upsertGalleryImage`, `updateInquiryStatus`, `updateSiteSettings`, `upsertTeacherProfile` | ADMIN |
@@ -58,4 +60,4 @@
 
 ## 5. Dữ liệu trả về cho học viên khi làm bài
 
-`startAttempt` / `GET /api/submissions/:id` trả câu hỏi đã **lọc bỏ** `is_correct`, `match_key` của cột phải (đã xáo trộn), `correct_position`, `config.blanks[].accepted`, `explanation`. Có test tự động kiểm tra JSON trả về không chứa các trường này.
+Màn hình làm bài (`/app/do/:submissionId`, hàm `getAttempt`) chỉ nhận câu hỏi qua `toStudentQuestion()`: **không có** `is_correct`, `match_key`, `correct_position`, `config` (đáp án điền từ, đáp án chấp nhận), `explanation`; cột phải của câu nối và các phần câu sắp xếp đã xáo trộn (cố định theo bài làm). Có unit test, integration test và E2E (kiểm tra cả HTML/RSC payload) xác nhận điều này. Trang kết quả chỉ hiện đáp án khi chế độ *hiện đáp án* cho phép.

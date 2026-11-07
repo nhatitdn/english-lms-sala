@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/server/auth/current-user";
 import { audit } from "@/server/audit";
 import { AppError } from "@/server/errors";
 import { consumeRateLimit } from "@/server/rate-limit";
-import { PURPOSE_KINDS } from "@/server/storage/rules";
+import { PURPOSE_KINDS, STUDENT_PURPOSES } from "@/server/storage/rules";
 import { storeUpload } from "@/server/storage/store";
 
 export const runtime = "nodejs";
@@ -33,12 +33,13 @@ export async function POST(request: Request) {
 
   const user = await getCurrentUser();
   if (!user || user.mustChangePassword) return json(401, { error: { code: "UNAUTHENTICATED", message: "Vui lòng đăng nhập lại." } });
-  // Phase 2: only staff upload teaching material (student uploads arrive with assignments in Phase 3)
-  if (user.role !== "ADMIN" && user.role !== "TEACHER") return json(403, { error: { code: "FORBIDDEN", message: "Bạn không có quyền tải file lên." } });
-
   const url = new URL(request.url);
   const parsed = querySchema.safeParse({ purpose: url.searchParams.get("purpose"), name: url.searchParams.get("name") });
   if (!parsed.success || !request.body) return json(422, { error: { code: "VALIDATION_ERROR", message: "Thiếu thông tin file." } });
+  // Staff upload teaching material; students only upload their own answers (photos, files, recordings); parents never upload.
+  const staff = user.role === "ADMIN" || user.role === "TEACHER";
+  const studentOk = user.role === "STUDENT" && STUDENT_PURPOSES.includes(parsed.data.purpose);
+  if (!staff && !studentOk) return json(403, { error: { code: "FORBIDDEN", message: "Bạn không có quyền tải file lên." } });
 
   const limit = await consumeRateLimit(`upload:user:${user.id}`, UPLOADS_PER_HOUR, 3600);
   if (!limit.allowed) return json(429, { error: { code: "RATE_LIMITED", message: "Bạn tải lên quá nhiều file. Vui lòng thử lại sau." } });

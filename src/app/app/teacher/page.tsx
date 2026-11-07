@@ -1,5 +1,6 @@
 import { CalendarClock, ClipboardCheck, ClipboardList, School, Users } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ClassScoreChart } from "@/components/charts/class-score-chart";
 import { DueBadge } from "@/components/design-system/due-badge";
 import { EmptyState } from "@/components/design-system/states";
@@ -76,9 +77,11 @@ export default async function TeacherDashboard() {
             ) : (
               <ul className="divide-y divide-line">
                 {d.gradeQueue.map((g) => (
-                  <li key={g.assignmentId} className="flex items-center justify-between gap-3 py-2.5">
-                    <span className="truncate text-ink">{g.title}</span>
-                    <Badge tone="success">{g.count} bài</Badge>
+                  <li key={g.assignmentId}>
+                    <Link href={`/app/assignments/${g.assignmentId}`} className="flex items-center justify-between gap-3 py-2.5 hover:bg-sky-50/60">
+                      <span className="truncate text-ink">{g.title}</span>
+                      <Badge tone="orange">{g.count} bài</Badge>
+                    </Link>
                   </li>
                 ))}
               </ul>

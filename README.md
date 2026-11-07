@@ -12,7 +12,7 @@ Monolith Next.js (App Router) · TypeScript · Tailwind · shadcn/ui · PostgreS
 | 0 — Phân tích & thiết kế | ✅ Hoàn thành |
 | 1 — Foundation | 🟡 Xong, chờ nghiệm thu (nhánh `phase-1-foundation`) |
 | 2 — Class & Content | 🟡 Xong, chờ nghiệm thu (nhánh `phase-2-class-content`) |
-| 3 — Assignment & Grading | ⚪ |
+| 3 — Assignment & Grading | 🟡 Xong, chờ nghiệm thu (nhánh `phase-3-assignments`) |
 | 4 — Management | ⚪ |
 | 5 — Public website & Deployment | ⚪ |
 
@@ -60,12 +60,23 @@ Tài khoản demo, mật khẩu `demo1234`: `admin.demo` · `gv.lan` · `gv.minh
 npm run lint          # ESLint
 npm run typecheck     # TypeScript strict
 npm test              # Vitest — tích hợp với PostgreSQL thật (DB sala_test, bị xoá mỗi lần chạy)
-npm run build && npm run test:e2e   # Playwright — cần DB dev đã seed demo; chạy cả mobile & desktop
+npm run build && npm run test:e2e   # Playwright — cần DB dev vừa seed demo (một số test dùng lượt làm bài của học viên demo); chạy cả mobile & desktop
 ```
 
 ## Công nghệ
 
 Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · Tailwind CSS 4 · Radix UI (shadcn-style) · Prisma 7 + `@prisma/adapter-pg` · PostgreSQL 16 · Auth.js v5 · Argon2id · Zod 4 · Recharts · Vitest · Playwright.
+
+## Phase 3 đã có
+
+- **Soạn bài tập — 10 dạng câu hỏi:** trắc nghiệm 1 đáp án, nhiều đáp án (tính điểm từng phần hoặc đúng hết mới có điểm), Đúng/Sai, điền chỗ trống (`She [[goes]] to school`, nhiều đáp án chấp nhận `[[don't|do not]]`), nối cặp, sắp xếp câu/từ, trả lời ngắn (tự chấm nếu khớp đáp án chấp nhận), viết đoạn văn (đếm từ), nói (ghi âm ngay trên điện thoại), nộp ảnh/file. Mỗi câu có thể kèm ảnh hoặc audio và lời giải thích.
+- **Cài đặt bài:** thang điểm (tự quy đổi), giới hạn thời gian, số lần làm, cho/không cho nộp muộn, xáo trộn câu hỏi/lựa chọn, hiện đáp án (ngay sau khi nộp / sau hạn / khi GV cho phép / không hiện). Nhân bản bài; câu hỏi tự khóa khi đã có học viên làm.
+- **Giao bài:** cả lớp / một nhóm / từng học viên, hẹn giờ giao, hạn nộp, thời điểm khóa nhận bài, gia hạn riêng từng học viên, miễn nộp. Học viên nhận thông báo trong hệ thống.
+- **Luyện nghe có câu hỏi (Listening Quiz):** trong bài giảng → bài nghe → *Tạo câu hỏi nghe*; học viên nghe audio ngay phía trên câu hỏi. Transcript chế độ “sau khi nộp bài nghe” không được gửi xuống trình duyệt trước khi nộp.
+- **Màn hình làm bài (mobile-first):** tự lưu ~1,5 giây sau mỗi thay đổi + lưu trên máy (`localStorage`), khôi phục khi tải lại trang, **làm tiếp khi mất mạng** và tự gửi khi có mạng lại, gửi lần cuối khi đóng tab (`keepalive`), đồng hồ theo giờ server, hết giờ tự nộp, cảnh báo khi bài đang mở ở tab/thiết bị khác. Ghi âm: WebM (Android/Chrome) hoặc M4A (iPhone), nghe lại trước khi gửi, hoặc gửi file ghi âm có sẵn.
+- **Chấm tự động** ở server cho trắc nghiệm, Đúng/Sai, điền từ, nối cặp, sắp xếp (và trả lời ngắn khớp đáp án). **Đáp án không bao giờ nằm trong dữ liệu gửi cho học viên khi làm bài** (có test).
+- **Chấm của giáo viên:** hàng chờ chấm (cũ nhất trước), chấm từng câu (điểm tự động được điền sẵn, sửa được), nhận xét từng câu + nhận xét chung, sửa tổng điểm (bắt buộc ghi lý do), yêu cầu làm lại (học viên được nộp lại, bắt đầu từ bài cũ), lịch sử các lần nộp và **lịch sử chấm** (không ghi đè điểm cũ). Nút “Lưu & chấm bài tiếp theo”.
+- **Bảng điểm lớp** (tab *Bảng điểm*): học viên × bài tập, đánh dấu “Thiếu” khi quá hạn chưa nộp, điểm trung bình quy về thang 10, **tải CSV mở bằng Excel**. Học viên xem tab *Điểm của tôi*, trang *Bài tập* (cần làm / đã nộp) và trang kết quả có điểm, nhận xét, đáp án (khi được phép).
 
 ## Phase 2 đã có
 

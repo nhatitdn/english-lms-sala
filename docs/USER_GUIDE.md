@@ -46,19 +46,39 @@
 **Thư viện** — *Thư viện*: tìm tài liệu không cần gõ dấu, lọc theo kỹ năng/loại, sửa chủ đề, tắt chia sẻ với giáo viên khác.
 
 Giới hạn dung lượng: ảnh 10 MB, tài liệu 30 MB, audio 30 MB, video 90 MB (đổi được trong cài đặt hệ thống). File bị đổi đuôi (VD file .exe đổi thành .mp3) sẽ bị từ chối.
-- Tạo và giao bài tập (10 dạng câu hỏi) — *Phase 3*
-- Chấm bài, nhận xét, cho nộp lại — *Phase 3*
+**Tạo bài tập** — *Bài tập* → *Tạo bài tập* → đặt tên, chọn loại. Ở trang soạn:
+1. *Thêm câu hỏi* → chọn dạng. Điền từ: viết câu và đặt đáp án trong `[[ ]]`, ví dụ `She [[goes]] to school.`; nhiều đáp án được chấp nhận thì ngăn bằng `|`: `I [[don't|do not]] like milk.` Có thể đính kèm ảnh hoặc audio cho từng câu.
+2. *Giao cho*: chọn lớp → cả lớp / một nhóm / từng học viên, *Giao lúc* (để trống = giao ngay), *Hạn nộp*, *Khóa nhận bài* (không bắt buộc) → *Giao bài*.
+3. *Cài đặt*: thang điểm, thời gian làm bài, số lần làm, cho nộp muộn, khi nào hiện đáp án.
+4. Bấm **Đăng bài tập** — học viên nhận thông báo.
+Khi đã có học viên làm bài, câu hỏi bị khóa; muốn sửa hãy *Nhân bản* thành bài mới.
+
+**Câu hỏi cho bài nghe** — mở bài giảng → *Sửa* → mục Luyện nghe → *Tạo câu hỏi nghe* → soạn và giao như bài tập thường.
+
+**Theo dõi & gia hạn** — mở bài tập để xem ai đã nộp, ai chưa, điểm trung bình. Nút ⋮ cạnh tên học viên: *Gia hạn riêng* hoặc *Miễn nộp*.
+
+**Chấm bài** — *Chấm bài* (hoặc số “chờ chấm”) → chọn bài. Câu trắc nghiệm đã có điểm tự động (sửa được); nhập điểm cho câu viết/nói/nộp file, viết nhận xét từng câu và nhận xét chung → *Lưu điểm* hoặc *Lưu & chấm bài tiếp theo*. Đánh dấu *Yêu cầu làm lại* để học viên nộp lại. Sửa tổng điểm cần ghi lý do; mọi lần chấm đều được lưu lịch sử.
+
+**Bảng điểm** — *Lớp học* → lớp → tab *Bảng điểm*; *Tải CSV (Excel)* để in hoặc lưu.
 - Điểm danh, đổi lịch, gửi thông báo lớp — *Phase 4*
 
 ## 4. Học viên
 **Xem bài giảng** — *Lớp học* → chọn lớp → tab *Bài giảng*, *Tài liệu* hoặc *Luyện nghe*.
 
 **Nghe audio** — bấm ▶ để nghe ngay (không cần tải về). ↺/↻ tua 10 giây; chọn tốc độ 0,5×–2×; *Lặp A–B*: bấm lần 1 đánh dấu đầu đoạn, lần 2 đánh dấu cuối đoạn, lần 3 tắt. Lần sau mở lại, hệ thống hỏi *Nghe tiếp* từ chỗ đã dừng. Transcript có thể chỉ mở sau khi nghe xong.
-- Làm bài, ghi âm, nộp bài, xem điểm & nhận xét — *Phase 3*
+**Làm bài tập** — *Bài tập* (hoặc Trang chủ) → chọn bài → *Bắt đầu làm bài*. Câu trả lời được **tự lưu** (dòng “Đã lưu” ở dưới màn hình). Mất mạng vẫn làm tiếp được — bài được giữ trên máy và tự gửi khi có mạng. Lỡ đóng trang thì mở lại bài, chọn *Làm tiếp*. Nếu bài có giới hạn thời gian, đồng hồ hiện ở dưới; hết giờ bài tự nộp.
+
+**Ghi âm (bài Nói)** — bấm *Bắt đầu ghi âm*, cho phép trình duyệt dùng micro, nói xong bấm *Dừng*, nghe lại rồi *Dùng bản ghi này*. Trên iPhone dùng Safari. Không ghi được thì chọn *Hoặc gửi file ghi âm có sẵn* (dùng app Ghi âm của điện thoại).
+
+**Nộp ảnh bài làm** — bấm *Chụp hoặc chọn ảnh* để chụp vở bài tập bằng camera.
+
+**Xem điểm** — sau khi nộp, bài trắc nghiệm có điểm ngay; bài viết/nói chờ giáo viên chấm. Xem ở *Bài tập* → *Đã nộp*, hoặc tab *Điểm của tôi* trong lớp. Nếu giáo viên *yêu cầu làm lại*, mở bài và bấm *Làm lại bài*.
 - Xem lịch học, thông báo — *Phase 4*
 
 ## 5. Phụ huynh
 - Theo dõi lịch, chuyên cần, bài tập, điểm và nhận xét của con — *Phase 4*
 
 ## 6. Câu hỏi thường gặp
-- Quên mật khẩu? Mất mạng khi đang làm bài? Không nghe được audio trên iPhone? — *bổ sung dần*
+- **Mất mạng khi đang làm bài?** Cứ làm tiếp, đừng đóng trình duyệt; khi có mạng bài tự lưu. Nếu đã lỡ đóng, mở lại trên cùng máy để khôi phục.
+- **Mở bài trên 2 máy cùng lúc?** Máy cũ sẽ báo “Bài đang mở ở nơi khác” — bấm *Tải lại* để làm tiếp với bản mới nhất.
+- Quên mật khẩu? Không nghe được audio trên iPhone? — *bổ sung dần*

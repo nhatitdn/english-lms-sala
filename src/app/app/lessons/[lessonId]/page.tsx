@@ -1,4 +1,4 @@
-import { Headphones, Paperclip, Pencil } from "lucide-react";
+import { Headphones, ListChecks, Paperclip, Pencil } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -81,7 +81,18 @@ export default async function LessonPage({ params }: PageProps<"/app/lessons/[le
                   transcript={a.transcript}
                   transcriptMode={a.transcriptMode}
                   trackProgress={user.role === "STUDENT"}
+                  quizSubmitted={!!a.quiz?.submitted}
                 />
+                {a.quiz && user.role === "STUDENT" && a.quiz.assigned && (
+                  <Link href={`/app/assignments/${a.quiz.assignmentId}`} className={buttonVariants({ variant: a.quiz.submitted ? "outline" : "primary", className: "justify-self-start" })}>
+                    <ListChecks /> {a.quiz.submitted ? "Xem kết quả bài nghe" : "Làm câu hỏi nghe"}
+                  </Link>
+                )}
+                {a.quiz && staff && (
+                  <Link href={`/app/assignments/${a.quiz.assignmentId}`} className={buttonVariants({ variant: "outline", size: "sm", className: "justify-self-start" })}>
+                    <ListChecks /> Câu hỏi nghe & kết quả
+                  </Link>
+                )}
               </div>
             );
           })}

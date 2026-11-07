@@ -1,6 +1,6 @@
 import type { Role } from "@/generated/prisma/enums";
 
-export type NavIcon = "dashboard" | "users" | "palette" | "profile" | "home" | "classes" | "lessons" | "library";
+export type NavIcon = "dashboard" | "users" | "palette" | "profile" | "home" | "classes" | "lessons" | "library" | "assignments" | "grading";
 export type NavItem = { href: string; label: string; icon: NavIcon; exact?: boolean };
 
 /** Main navigation per role. Items are added here as each phase ships its pages. */
@@ -9,6 +9,7 @@ export const NAV_ITEMS: Record<Role, NavItem[]> = {
     { href: "/app/admin", label: "Tổng quan", icon: "dashboard", exact: true },
     { href: "/app/classes", label: "Lớp học", icon: "classes" },
     { href: "/app/lessons", label: "Bài giảng", icon: "lessons" },
+    { href: "/app/assignments", label: "Bài tập", icon: "assignments" },
     { href: "/app/admin/users", label: "Người dùng", icon: "users" },
     { href: "/app/library", label: "Thư viện", icon: "library" },
     { href: "/app/admin/design-system", label: "Giao diện", icon: "palette" },
@@ -17,12 +18,15 @@ export const NAV_ITEMS: Record<Role, NavItem[]> = {
   TEACHER: [
     { href: "/app/teacher", label: "Tổng quan", icon: "dashboard", exact: true },
     { href: "/app/classes", label: "Lớp học", icon: "classes" },
+    { href: "/app/assignments", label: "Bài tập", icon: "assignments" },
+    { href: "/app/grading", label: "Chấm bài", icon: "grading" },
     { href: "/app/lessons", label: "Bài giảng", icon: "lessons" },
     { href: "/app/library", label: "Thư viện", icon: "library" },
     { href: "/app/profile", label: "Tài khoản", icon: "profile" },
   ],
   STUDENT: [
     { href: "/app/student", label: "Trang chủ", icon: "home", exact: true },
+    { href: "/app/assignments", label: "Bài tập", icon: "assignments" },
     { href: "/app/classes", label: "Lớp học", icon: "classes" },
     { href: "/app/profile", label: "Tôi", icon: "profile" },
   ],

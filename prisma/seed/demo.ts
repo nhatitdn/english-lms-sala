@@ -7,6 +7,7 @@ import { TZDate } from "@date-fns/tz";
 import { createHash, randomUUID } from "node:crypto";
 import { copyFileSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { draftToStorage, gradeAnswer, questionDraftSchema, type StoredQuestion } from "../../src/features/assignments/questions";
 import { hashPassword } from "../../src/server/auth/password";
 import { createScriptClient } from "./client";
 
@@ -229,81 +230,140 @@ async function main() {
       }
     }
 
-    // Assignments
-    const quiz2 = await db.assignment.create({
-      data: {
-        title: "Unit 2 Quiz — Animals",
-        kind: "QUIZ",
-        maxScore: 10,
-        status: "PUBLISHED",
-        createdBy: lan.id,
-        targets: { create: { classId: starter.id, targetType: "CLASS", availableAt: vn(-6, 8), dueAt: vn(-2, 21) } },
-      },
-    });
-    const quiz3 = await db.assignment.create({
-      data: {
-        title: "Unit 3 Quiz — My family",
-        kind: "QUIZ",
-        maxScore: 10,
-        status: "PUBLISHED",
-        createdBy: lan.id,
-        targets: { create: { classId: starter.id, targetType: "CLASS", availableAt: vn(-1, 8), dueAt: vn(1, 21) } },
-      },
-    });
-    await db.assignment.create({
-      data: {
-        title: "Writing #1 — My weekend",
-        kind: "WRITING",
-        maxScore: 10,
-        status: "PUBLISHED",
-        createdBy: lan.id,
-        targets: { create: { classId: adults.id, targetType: "CLASS", availableAt: vn(-2, 8), dueAt: vn(5, 21) } },
-      },
-    });
+    // Assignments (Phase 3): real questions, answers graded by the same pure grader the app uses
+    type Draft = Parameters<typeof draftToStorage>[0];
+    const makeAssignment = async (data: { title: string; kind: "QUIZ" | "WRITING" | "LISTENING"; classId: string; availableAt: Date; dueAt: Date; description?: string; answerReveal?: "AFTER_SUBMIT" | "AFTER_DUE" | "NEVER"; maxAttempts?: number | null; timeLimitMin?: number | null }, drafts: Draft[]) => {
+      const a = await db.assignment.create({
+        data: {
+          title: data.title,
+          description: data.description,
+          kind: data.kind,
+          maxScore: 10,
+          status: "PUBLISHED",
+          createdBy: lan.id,
+          answerReveal: data.answerReveal ?? "AFTER_DUE",
+          maxAttempts: data.maxAttempts === undefined ? 1 : data.maxAttempts,
+          timeLimitMin: data.timeLimitMin ?? null,
+          targets: { create: { classId: data.classId, targetType: "CLASS", availableAt: data.availableAt, dueAt: data.dueAt } },
+        },
+      });
+      for (const [i, d] of drafts.entries()) {
+        const parsed = questionDraftSchema.parse(d);
+        const { config, options } = draftToStorage(parsed);
+        await db.question.create({
+          data: {
+            assignmentId: a.id,
+            type: parsed.type,
+            prompt: { text: parsed.prompt },
+            points: parsed.points,
+            config: config as object,
+            explanation: parsed.explanation ? { text: parsed.explanation } : undefined,
+            sortOrder: i + 1,
+            options: { create: options },
+          },
+        });
+      }
+      return a;
+    };
+    /** Hand in an attempt: answers are given as option TEXTS and translated to ids, then auto-graded. */
+    const handIn = async (assignmentId: string, studentId: string, classId: string, at: Date, late: boolean, answerFor: (q: StoredQuestion, byText: (t: string, side?: "LEFT" | "RIGHT") => string) => unknown) => {
+      const rows = await db.question.findMany({ where: { assignmentId }, orderBy: { sortOrder: "asc" }, include: { options: true } });
+      const qs: StoredQuestion[] = rows.map((r) => ({ ...r, points: Number(r.points), config: r.config as Record<string, unknown>, options: r.options }));
+      let total = 0;
+      let earned = 0;
+      let allAuto = true;
+      const answers = qs.map((q) => {
+        const byText = (t: string, side?: "LEFT" | "RIGHT") => q.options.find((o) => (o.content as { text: string }).text === t && (!side || o.matchSide === side))!.id;
+        const answer = answerFor(q, byText);
+        const g = gradeAnswer(q, answer);
+        total += q.points;
+        if (g.auto) earned += g.points;
+        else allAuto = false;
+        return { questionId: q.id, answer: answer as object, isCorrect: g.isCorrect, autoPoints: g.points };
+      });
+      const score = Math.round((earned / total) * 10 * 100) / 100;
+      return db.submission.create({
+        data: {
+          assignmentId,
+          studentId,
+          classId,
+          attemptNo: 1,
+          status: allAuto ? "GRADED" : "SUBMITTED",
+          startedAt: new Date(at.getTime() - 20 * 60_000),
+          submittedAt: at,
+          isLate: late,
+          autoScore: score,
+          finalScore: allAuto ? score : null,
+          answers: { create: answers },
+          ...(allAuto ? { grades: { create: { score, maxScore: 10, source: "AUTO" as const, isCurrent: true } } } : {}),
+        },
+      });
+    };
 
-    // Minh Anh: graded quiz 2 + feedback; Quốc Bảo: submitted quiz 2 waiting for grading; Gia Hân: not submitted
-    const subGraded = await db.submission.create({
-      data: {
-        assignmentId: quiz2.id,
-        studentId: minhAnh.id,
-        classId: starter.id,
-        attemptNo: 1,
-        status: "GRADED",
-        startedAt: vn(-4, 19),
-        submittedAt: vn(-4, 19, 20),
-        autoScore: 9,
-        finalScore: 9,
-        grades: { create: { score: 9, maxScore: 10, source: "AUTO", isCurrent: true } },
-      },
+    const quiz2 = await makeAssignment({ title: "Unit 2 Quiz — Animals", kind: "QUIZ", classId: starter.id, availableAt: vn(-6, 8), dueAt: vn(-2, 21) }, [
+      { type: "MULTIPLE_CHOICE", prompt: "Which animal can fly?", points: 2, options: [{ text: "a fish", correct: false }, { text: "a bird", correct: true }, { text: "a cat", correct: false }] },
+      { type: "TRUE_FALSE", prompt: "An elephant is smaller than a mouse.", points: 2, correct: false },
+      { type: "FILL_BLANK", prompt: "Fill in the blanks.", points: 2, text: "A [[cow]] gives us milk. A [[bee|honeybee]] makes honey.", caseSensitive: false },
+      { type: "MATCHING", prompt: "Match the animals with their Vietnamese names.", points: 2, pairs: [{ left: "dog", right: "con chó" }, { left: "cat", right: "con mèo" }, { left: "duck", right: "con vịt" }, { left: "pig", right: "con lợn" }] },
+      { type: "ORDERING", prompt: "Put the words in order.", points: 2, items: ["The", "monkey", "is", "very", "funny"] },
+    ] as Draft[]);
+    const quiz3 = await makeAssignment(
+      { title: "Unit 3 Quiz — My family", kind: "QUIZ", classId: starter.id, availableAt: vn(-1, 8), dueAt: vn(1, 21), description: "Làm bài trong 15 phút. Được làm 2 lần, lấy lần sau cùng.", maxAttempts: 2, timeLimitMin: 15, answerReveal: "AFTER_SUBMIT" },
+      [
+        { type: "MULTIPLE_CHOICE", prompt: "My father's mother is my ___.", points: 1, options: [{ text: "aunt", correct: false }, { text: "grandmother", correct: true }, { text: "sister", correct: false }, { text: "cousin", correct: false }], explanation: "Mẹ của bố là bà nội: grandmother." },
+        { type: "MULTIPLE_SELECT", prompt: "Which words are family members? (choose all)", points: 2, scoring: "PARTIAL", options: [{ text: "brother", correct: true }, { text: "teacher", correct: false }, { text: "uncle", correct: true }, { text: "window", correct: false }] },
+        { type: "FILL_BLANK", prompt: "Complete the sentences.", points: 2, text: "This [[is]] my mother. She [[is]] a doctor.", caseSensitive: false },
+        { type: "SHORT_ANSWER", prompt: "How many people are there in your family? (Write a full sentence.)", points: 2, acceptedAnswers: [] },
+        { type: "SPEAKING", prompt: "Introduce one family member in 3 sentences. (Ghi âm)", points: 3, maxDurationSec: 60 },
+      ] as Draft[],
+    );
+    const writing1 = await makeAssignment(
+      { title: "Writing #1 — My weekend", kind: "WRITING", classId: adults.id, availableAt: vn(-2, 8), dueAt: vn(5, 21), answerReveal: "NEVER", maxAttempts: 1 },
+      [{ type: "WRITING", prompt: "Write about what you did last weekend (80–120 words). Use the past simple.", points: 10, minWords: 80, maxWords: 120 }] as Draft[],
+    );
+
+    // Minh Anh: quiz 2 graded 9/10 (+ feedback) · Quốc Bảo: quiz 2 late · Gia Hân: did not submit
+    const subGraded = await handIn(quiz2.id, minhAnh.id, starter.id, vn(-4, 19, 20), false, (q, t) => {
+      switch (q.type) {
+        case "MULTIPLE_CHOICE":
+          return { optionId: t("a bird") };
+        case "TRUE_FALSE":
+          return { optionId: t("False") };
+        case "FILL_BLANK":
+          return { blanks: { "0": "cow", "1": "bea" } };
+        case "MATCHING":
+          return { pairs: { [t("dog", "LEFT")]: t("con chó", "RIGHT"), [t("cat", "LEFT")]: t("con mèo", "RIGHT"), [t("duck", "LEFT")]: t("con vịt", "RIGHT"), [t("pig", "LEFT")]: t("con lợn", "RIGHT") } };
+        default:
+          return { order: ["The", "monkey", "is", "very", "funny"].map((w) => t(w)) };
+      }
     });
     await db.feedback.create({
-      data: {
-        studentId: minhAnh.id,
-        classId: starter.id,
-        submissionId: subGraded.id,
-        authorId: lan.id,
-        content: "Con làm bài rất tốt, nhớ ôn lại từ vựng về động vật hoang dã nhé.",
-      },
+      data: { studentId: minhAnh.id, classId: starter.id, submissionId: subGraded.id, authorId: lan.id, content: "Con làm bài rất tốt, nhớ ôn lại cách viết từ “bee” nhé." },
     });
-    await db.submission.create({
-      data: {
-        assignmentId: quiz2.id,
-        studentId: quocBao.id,
-        classId: starter.id,
-        attemptNo: 1,
-        status: "SUBMITTED",
-        startedAt: vn(-3, 20),
-        submittedAt: vn(-2, 22),
-        isLate: true,
-        autoScore: 7,
-      },
+    await handIn(quiz2.id, quocBao.id, starter.id, vn(-2, 22), true, (q, t) => {
+      switch (q.type) {
+        case "MULTIPLE_CHOICE":
+          return { optionId: t("a bird") };
+        case "TRUE_FALSE":
+          return { optionId: t("True") };
+        case "FILL_BLANK":
+          return { blanks: { "0": "cow", "1": "bee" } };
+        case "MATCHING":
+          return { pairs: { [t("dog", "LEFT")]: t("con chó", "RIGHT"), [t("cat", "LEFT")]: t("con mèo", "RIGHT"), [t("duck", "LEFT")]: t("con lợn", "RIGHT"), [t("pig", "LEFT")]: t("con vịt", "RIGHT") } };
+        default:
+          return { order: ["The", "monkey", "is", "very", "funny"].map((w) => t(w)) };
+      }
     });
+    // Thảo handed in her writing → waits in the teacher's grading queue
+    await handIn(writing1.id, thao.id, adults.id, vn(0, 7, 30), false, () => ({
+      text: "Last weekend I visited my grandparents in Hoi An. On Saturday morning we went to the market and bought fresh vegetables and fish. My grandmother cooked a delicious lunch for the whole family. In the afternoon I walked along the river with my cousin and we took a lot of photos. On Sunday I stayed at home, cleaned my room and watched a film with my husband. In the evening we had dinner at a small restaurant near our house. It was a relaxing weekend and I felt happy.",
+    }));
     void quiz3;
 
     await db.notification.createMany({
       data: [
-        { userId: (await db.student.findUniqueOrThrow({ where: { id: minhAnh.id } })).userId, type: "ASSIGNMENT_NEW", title: "Bài tập mới: Unit 3 Quiz — My family", link: "/app/student" },
-        { userId: (await db.student.findUniqueOrThrow({ where: { id: minhAnh.id } })).userId, type: "ASSIGNMENT_GRADED", title: "Unit 2 Quiz đã được chấm: 9/10", link: "/app/student" },
+        { userId: (await db.student.findUniqueOrThrow({ where: { id: minhAnh.id } })).userId, type: "ASSIGNMENT_NEW", title: "Bài tập mới: Unit 3 Quiz — My family", link: `/app/assignments/${quiz3.id}`, dedupeKey: quiz3.id },
+        { userId: (await db.student.findUniqueOrThrow({ where: { id: minhAnh.id } })).userId, type: "ASSIGNMENT_GRADED", title: "Unit 2 Quiz — Animals: 9/10 điểm", link: `/app/submissions/${subGraded.id}`, dedupeKey: `auto:${subGraded.id}` },
       ],
     });
 
@@ -313,6 +373,15 @@ async function main() {
     const worksheet = await db.learningMaterial.create({ data: { title: "Unit 3 — Worksheet", type: "DOCUMENT", fileId: pdf.id, skill: "VOCABULARY", tags: ["family", "unit 3"], ownerId: lan.id } });
     const song = await db.learningMaterial.create({ data: { title: "Family song (YouTube)", type: "YOUTUBE", url: "https://www.youtube.com/watch?v=FHaObkHEkHQ", skill: "LISTENING", tags: ["family", "song"], ownerId: lan.id } });
     const p = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
+    // Listening Quiz: questions about the audio of Unit 3 (same assignment engine)
+    const listeningQuiz = await makeAssignment(
+      { title: "Listening: Meet my family", kind: "LISTENING", classId: starter.id, availableAt: vn(-1, 8), dueAt: vn(3, 21), answerReveal: "AFTER_SUBMIT", maxAttempts: 2 },
+      [
+        { type: "MULTIPLE_CHOICE", prompt: "What is the girl's name?", points: 1, options: [{ text: "Anna", correct: true }, { text: "Lucy", correct: false }, { text: "Tom", correct: false }] },
+        { type: "FILL_BLANK", prompt: "Listen and complete.", points: 2, text: "Her father's name is [[Tom]]. Her mother's name is [[Lucy]].", caseSensitive: false },
+        { type: "TRUE_FALSE", prompt: "The girl talks about her brother.", points: 1, correct: false },
+      ] as Draft[],
+    );
     await db.lesson.create({
       data: {
         title: "Unit 3 — My family",
@@ -345,6 +414,7 @@ async function main() {
             transcript: { type: "doc", content: [p("Hi, I'm Anna. This is my family."), p("This is my father. His name is Tom."), p("And this is my mother, Lucy.")] },
             transcriptMode: "AFTER_COMPLETE",
             completeThreshold: 80,
+            assignmentId: listeningQuiz.id,
           },
         },
       },

@@ -1,7 +1,7 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import type { CurrentUser } from "@/server/auth/current-user";
-import { canEditLesson, canManageClass, canViewClass, visibleLessonWhere } from "@/server/authz/policies";
+import { assignedToStudentWhere, canEditLesson, canManageClass, canViewClass, visibleLessonWhere } from "@/server/authz/policies";
 import { db } from "@/server/db";
 
 const attachmentSelect = {
@@ -96,6 +96,7 @@ export async function getLessonDetail(user: CurrentUser, lessonId: string) {
           completeThreshold: true,
           audioFileId: true,
           coverFileId: true,
+          assignmentId: true,
           audioFile: { select: { originalName: true, sizeBytes: true } },
           ...(user.studentId ? { progress: { where: { studentId: user.studentId }, select: { positionSec: true, completedAt: true, playCount: true } } } : {}),
         },
@@ -106,7 +107,27 @@ export async function getLessonDetail(user: CurrentUser, lessonId: string) {
   const canEdit = await canEditLesson(user, lessonId);
   // students only see the classes they are in
   const classes = user.role === "STUDENT" ? [] : lesson.classes;
-  return { lesson: { ...lesson, classes }, canEdit };
+
+  // Listening Quiz (Phase 3): which quizzes the student was given / already handed in
+  const quizIds = lesson.audioLessons.map((a) => a.assignmentId).filter((id): id is string => !!id);
+  let assigned = new Set<string>();
+  let submitted = new Set<string>();
+  if (user.role === "STUDENT" && user.studentId && quizIds.length) {
+    const rows = await db.assignment.findMany({ where: { AND: [{ id: { in: quizIds } }, assignedToStudentWhere(user.studentId)] }, select: { id: true } });
+    assigned = new Set(rows.map((r) => r.id));
+    const subs = await db.submission.findMany({
+      where: { assignmentId: { in: quizIds }, studentId: user.studentId, status: { in: ["SUBMITTED", "GRADED", "NEEDS_REVISION"] } },
+      select: { assignmentId: true },
+    });
+    submitted = new Set(subs.map((s) => s.assignmentId));
+  }
+  const audioLessons = lesson.audioLessons.map((a) => {
+    const quiz = a.assignmentId ? { assignmentId: a.assignmentId, assigned: assigned.has(a.assignmentId), submitted: submitted.has(a.assignmentId) } : null;
+    // "show after submitting the quiz": the transcript is not even sent to the browser before that
+    const hideTranscript = user.role === "STUDENT" && a.transcriptMode === "AFTER_SUBMIT" && !(quiz && quiz.submitted);
+    return { ...a, quiz, transcript: hideTranscript ? null : a.transcript };
+  });
+  return { lesson: { ...lesson, classes, audioLessons }, canEdit };
 }
 
 /** All attachments of the lessons a user can see in a class (Tài liệu tab). */

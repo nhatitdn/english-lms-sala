@@ -1,5 +1,6 @@
 import { CalendarDays, ClipboardList, MessageSquareQuote, Star } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { DueBadge } from "@/components/design-system/due-badge";
 import { EmptyState } from "@/components/design-system/states";
 import { Badge } from "@/components/ui/badge";
@@ -45,12 +46,18 @@ export default async function StudentDashboard() {
             ) : (
               <ul className="divide-y divide-line">
                 {d.todo.slice(0, 6).map((w) => (
-                  <li key={w.assignmentId} className="flex items-center justify-between gap-3 py-3">
-                    <span className="grid min-w-0">
-                      <span className="truncate font-medium text-ink">{w.title}</span>
-                      <span className="text-sm text-ink-muted">{w.className}</span>
-                    </span>
-                    <DueBadge dueAt={w.dueAt} />
+                  <li key={w.assignmentId}>
+                    <Link href={`/app/assignments/${w.assignmentId}`} className="flex items-center justify-between gap-3 py-3 hover:bg-sky-50/60">
+                      <span className="grid min-w-0">
+                        <span className="truncate font-medium text-ink">{w.title}</span>
+                        <span className="text-sm text-ink-muted">
+                          {w.className}
+                          {w.submissionStatus === "IN_PROGRESS" && " · đang làm dở"}
+                          {w.submissionStatus === "NEEDS_REVISION" && " · cần làm lại"}
+                        </span>
+                      </span>
+                      <DueBadge dueAt={w.dueAt} />
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -98,7 +105,8 @@ export default async function StudentDashboard() {
             ) : (
               <ul className="divide-y divide-line">
                 {d.recentGrades.map((g) => (
-                  <li key={g.id} className="flex items-center justify-between gap-3 py-3">
+                  <li key={g.id}>
+                    <Link href={`/app/submissions/${g.id}`} className="flex items-center justify-between gap-3 py-3 hover:bg-sky-50/60">
                     <span className="grid min-w-0">
                       <span className="truncate font-medium text-ink">{g.assignment.title}</span>
                       <span className="text-sm text-ink-muted">
@@ -110,6 +118,7 @@ export default async function StudentDashboard() {
                       {formatScore(g.finalScore)}
                       <span className="text-sm font-normal text-ink-muted">/{formatScore(g.assignment.maxScore)}</span>
                     </span>
+                    </Link>
                   </li>
                 ))}
               </ul>
