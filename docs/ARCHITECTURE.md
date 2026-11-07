@@ -175,3 +175,16 @@ Ngoài ra việc "bài đã đến giờ giao chưa" luôn được tính lúc t
 3. Nginx phục vụ file qua `X-Accel-Redirect` (app chỉ cấp quyền).
 4. Cron của host thay cho container cron / queue.
 5. Rate limit bằng Postgres + Nginx, không Redis.
+
+## 11. Ghi chú triển khai (cập nhật sau Phase 1)
+
+| Chủ đề | Thực tế | Lý do |
+|---|---|---|
+| Next.js | Bản 16 (Turbopack). `cacheComponents` **tắt** | Gần như mọi trang LMS phụ thuộc người dùng đăng nhập → mô hình render động truyền thống đơn giản, ít rủi ro lộ dữ liệu qua cache |
+| Middleware | Next 16 đổi tên thành `src/proxy.ts`; chỉ kiểm tra có cookie phiên để chuyển hướng sớm | Kiểm tra quyền thật nằm ở `getCurrentUser()` / `requireRole()` / `createAction()` |
+| Prisma | Prisma 7 + driver adapter `@prisma/adapter-pg`; client sinh vào `src/generated/prisma` (không commit) | Prisma 7 bỏ Rust query engine |
+| Múi giờ DB | Kết nối luôn đặt `TimeZone=UTC` | Adapter gửi thời gian không kèm offset; nếu session DB khác UTC sẽ lệch giờ. Đã có test bắt lỗi này |
+| Soft delete | Lọc `deletedAt: null` tường minh trong từng truy vấn (không dùng Prisma extension) | Dễ đọc, dễ review; extension của Prisma 7 làm rối kiểu dữ liệu |
+| Font | Tự host từ gói `@fontsource` (Be Vietnam Pro, Playfair Display) | Không gọi Google Fonts lúc build/chạy |
+| Form | Server Actions + `useActionState`/`useTransition`, validate Zod ở server (bắt buộc) | Không thêm react-hook-form khi chưa cần |
+| Ràng buộc SQL riêng | Viết thêm cuối migration `init`; `prisma migrate diff` xác nhận không bị Prisma xoá | Partial unique index, CHECK, index tìm kiếm không dấu |

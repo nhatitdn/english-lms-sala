@@ -1,0 +1,25 @@
+# Local development database only. Production compose (app + postgres + nginx) comes in Phase 5.
+#   docker compose -f docker-compose.dev.yml up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sala
+      POSTGRES_PASSWORD: sala_dev_password
+      POSTGRES_DB: sala_dev
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init-dev.sql:/docker-entrypoint-initdb.d/init-dev.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sala -d sala_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

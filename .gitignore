@@ -28,3 +28,9 @@ desktop.ini
 !.vscode/extensions.json
 .idea/
 *.log
+
+# Next.js / tooling
+.next/
+next-env.d.ts
+*.tsbuildinfo
+/src/generated/

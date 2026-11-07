@@ -1,0 +1,1070 @@
+// Sala English Corner — database schema
+// Design notes: docs/DATABASE.md · ERD: docs/ERD.md
+// Conventions: UUID ids, snake_case tables/columns, timestamptz (UTC), soft delete where noted.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [citext, unaccent, pgcrypto]
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum UserStatus {
+  ACTIVE
+  LOCKED
+  DISABLED
+}
+
+enum Level {
+  STARTER
+  BEGINNER
+  ELEMENTARY
+  PRE_INTERMEDIATE
+  INTERMEDIATE
+  UPPER_INTERMEDIATE
+  ADVANCED
+}
+
+enum ParentRelationship {
+  FATHER
+  MOTHER
+  GUARDIAN
+  OTHER
+}
+
+enum TargetAudience {
+  KIDS
+  TEENS
+  UNIVERSITY
+  ADULTS
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum ClassStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ClassTeacherRole {
+  MAIN
+  ASSISTANT
+}
+
+enum MemberStatus {
+  ACTIVE
+  TRANSFERRED_OUT
+  LEFT
+  COMPLETED
+}
+
+enum SessionStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  EXCUSED
+  LATE
+}
+
+enum FileVisibility {
+  PRIVATE
+  PUBLIC
+}
+
+enum FileKind {
+  IMAGE
+  DOCUMENT
+  AUDIO
+  VIDEO
+  RECORDING
+}
+
+enum MaterialType {
+  DOCUMENT
+  AUDIO
+  VIDEO
+  IMAGE
+  YOUTUBE
+  LINK
+}
+
+enum Skill {
+  VOCABULARY
+  GRAMMAR
+  LISTENING
+  SPEAKING
+  READING
+  WRITING
+  PRONUNCIATION
+  GENERAL
+}
+
+enum LessonStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TranscriptMode {
+  ALWAYS
+  AFTER_COMPLETE
+  AFTER_SUBMIT
+  HIDDEN
+}
+
+enum AssignmentKind {
+  QUIZ
+  LISTENING
+  WRITING
+  SPEAKING
+  FILE_UPLOAD
+  MIXED
+}
+
+enum AnswerReveal {
+  NEVER
+  AFTER_SUBMIT
+  AFTER_DUE
+  MANUAL
+}
+
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum TargetType {
+  CLASS
+  GROUP
+  STUDENT
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  MULTIPLE_SELECT
+  TRUE_FALSE
+  FILL_BLANK
+  MATCHING
+  ORDERING
+  SHORT_ANSWER
+  WRITING
+  SPEAKING
+  FILE_UPLOAD
+}
+
+enum MatchSide {
+  LEFT
+  RIGHT
+}
+
+enum SubmissionStatus {
+  IN_PROGRESS
+  SUBMITTED
+  GRADED
+  NEEDS_REVISION
+  EXCUSED
+}
+
+enum GradeSource {
+  AUTO
+  MANUAL
+}
+
+enum NotificationType {
+  ASSIGNMENT_NEW
+  ASSIGNMENT_DUE_SOON
+  ASSIGNMENT_GRADED
+  SCHEDULE_CHANGED
+  SESSION_CANCELLED
+  ANNOUNCEMENT
+  SYSTEM
+}
+
+enum InquiryType {
+  TRIAL
+  CONSULT
+  CONTACT
+}
+
+enum InquiryStatus {
+  NEW
+  CONTACTED
+  SCHEDULED
+  ENROLLED
+  CLOSED
+}
+
+// ───────────────────────────── User ─────────────────────────────
+
+model User {
+  id                 String     @id @default(uuid()) @db.Uuid
+  username           String     @unique @db.Citext
+  email              String?    @unique @db.Citext
+  phone              String?
+  passwordHash       String     @map("password_hash")
+  fullName           String     @map("full_name")
+  avatarFileId       String?    @map("avatar_file_id") @db.Uuid
+  role               Role
+  status             UserStatus @default(ACTIVE)
+  mustChangePassword Boolean    @default(true) @map("must_change_password")
+  sessionVersion     Int        @default(1) @map("session_version")
+  failedLoginCount   Int        @default(0) @map("failed_login_count")
+  lockedUntil        DateTime?  @map("locked_until") @db.Timestamptz(6)
+  lastLoginAt        DateTime?  @map("last_login_at") @db.Timestamptz(6)
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt          DateTime?  @map("deleted_at") @db.Timestamptz(6)
+
+  avatar  File?    @relation("UserAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
+  student Student?
+  teacher Teacher?
+  parent  Parent?
+
+  uploadedFiles      File[]                @relation("FileUploader")
+  lessons            Lesson[]
+  materials          LearningMaterial[]
+  assignmentsCreated Assignment[]
+  extensionsGranted  AssignmentExtension[]
+  gradesGiven        Grade[]
+  feedbackWritten    Feedback[]
+  attendanceMarked   Attendance[]
+  notifications      Notification[]
+  announcements      Announcement[]
+  activityLogs       ActivityLog[]
+  settingsUpdated    SystemSetting[]
+  posts              Post[]
+  inquiriesHandled   Inquiry[]
+
+  @@index([role])
+  @@map("users")
+}
+
+model Student {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @unique @map("user_id") @db.Uuid
+  studentCode       String    @unique @map("student_code")
+  dateOfBirth       DateTime? @map("date_of_birth") @db.Date
+  school            String?
+  currentLevel      Level?    @map("current_level")
+  isIndependent     Boolean   @default(false) @map("is_independent")
+  guardianConsentAt DateTime? @map("guardian_consent_at") @db.Timestamptz(6)
+  privateNotes      String?   @map("private_notes")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parents           ParentStudent[]
+  memberships       ClassMember[]
+  groupMemberships  ClassGroupMember[]
+  attendance        Attendance[]
+  audioProgress     AudioProgress[]
+  assignmentTargets AssignmentTarget[]
+  extensions        AssignmentExtension[]
+  submissions       Submission[]
+  feedback          Feedback[]
+
+  @@map("students")
+}
+
+model Teacher {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @unique @map("user_id") @db.Uuid
+  slug           String   @unique
+  displayName    String   @map("display_name")
+  bio            Json?
+  qualifications String?
+  photoFileId    String?  @map("photo_file_id") @db.Uuid
+  isPublic       Boolean  @default(false) @map("is_public")
+  sortOrder      Int      @default(0) @map("sort_order")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photo   File?          @relation("TeacherPhoto", fields: [photoFileId], references: [id], onDelete: SetNull)
+  classes ClassTeacher[]
+
+  @@map("teachers")
+}
+
+model Parent {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  children ParentStudent[]
+
+  @@map("parents")
+}
+
+model ParentStudent {
+  parentId     String             @map("parent_id") @db.Uuid
+  studentId    String             @map("student_id") @db.Uuid
+  relationship ParentRelationship @default(OTHER)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([parentId, studentId])
+  @@index([studentId])
+  @@map("parent_students")
+}
+
+// ───────────────────────────── Class ─────────────────────────────
+
+model Course {
+  id             String         @id @default(uuid()) @db.Uuid
+  slug           String         @unique
+  title          String
+  summary        String?
+  description    Json?
+  targetAudience TargetAudience @map("target_audience")
+  level          Level?
+  ageMin         Int?           @map("age_min")
+  ageMax         Int?           @map("age_max")
+  durationText   String?        @map("duration_text")
+  sessionsCount  Int?           @map("sessions_count")
+  feeVnd         Int?           @map("fee_vnd")
+  coverFileId    String?        @map("cover_file_id") @db.Uuid
+  isFeatured     Boolean        @default(false) @map("is_featured")
+  status         PublishStatus  @default(DRAFT)
+  seoTitle       String?        @map("seo_title")
+  seoDescription String?        @map("seo_description")
+  sortOrder      Int            @default(0) @map("sort_order")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime?      @map("deleted_at") @db.Timestamptz(6)
+
+  cover     File?     @relation("CourseCover", fields: [coverFileId], references: [id], onDelete: SetNull)
+  classes   Class[]
+  inquiries Inquiry[]
+
+  @@map("courses")
+}
+
+model Class {
+  id          String      @id @default(uuid()) @db.Uuid
+  code        String      @unique
+  name        String
+  description String?
+  courseId    String?     @map("course_id") @db.Uuid
+  level       Level
+  ageMin      Int?        @map("age_min")
+  ageMax      Int?        @map("age_max")
+  startDate   DateTime    @map("start_date") @db.Date
+  endDate     DateTime?   @map("end_date") @db.Date
+  status      ClassStatus @default(PLANNED)
+  maxStudents Int?        @map("max_students")
+  location    String?
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime?   @map("deleted_at") @db.Timestamptz(6)
+
+  course            Course?            @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  teachers          ClassTeacher[]
+  members           ClassMember[]      @relation("MemberClass")
+  transfersIn       ClassMember[]      @relation("TransferTarget")
+  groups            ClassGroup[]
+  schedules         ClassSchedule[]
+  sessions          ClassSession[]
+  lessonClasses     LessonClass[]
+  assignmentTargets AssignmentTarget[]
+  submissions       Submission[]
+  feedback          Feedback[]
+  announcements     Announcement[]
+
+  @@index([status])
+  @@map("classes")
+}
+
+model ClassTeacher {
+  classId   String           @map("class_id") @db.Uuid
+  teacherId String           @map("teacher_id") @db.Uuid
+  role      ClassTeacherRole @default(MAIN)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@id([classId, teacherId])
+  @@index([teacherId])
+  @@map("class_teachers")
+}
+
+/// Partial unique index "class_members_active_unique" on (class_id, student_id) WHERE status = 'ACTIVE' is created in SQL.
+model ClassMember {
+  id                   String       @id @default(uuid()) @db.Uuid
+  classId              String       @map("class_id") @db.Uuid
+  studentId            String       @map("student_id") @db.Uuid
+  status               MemberStatus @default(ACTIVE)
+  joinedAt             DateTime     @default(now()) @map("joined_at") @db.Timestamptz(6)
+  leftAt               DateTime?    @map("left_at") @db.Timestamptz(6)
+  transferredToClassId String?      @map("transferred_to_class_id") @db.Uuid
+  note                 String?
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  class           Class   @relation("MemberClass", fields: [classId], references: [id], onDelete: Restrict)
+  student         Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  transferredTo   Class?  @relation("TransferTarget", fields: [transferredToClassId], references: [id], onDelete: SetNull)
+
+  @@index([classId, status])
+  @@index([studentId])
+  @@map("class_members")
+}
+
+model ClassGroup {
+  id        String   @id @default(uuid()) @db.Uuid
+  classId   String   @map("class_id") @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  class   Class              @relation(fields: [classId], references: [id], onDelete: Cascade)
+  members ClassGroupMember[]
+  targets AssignmentTarget[]
+
+  @@unique([classId, name])
+  @@map("class_groups")
+}
+
+model ClassGroupMember {
+  groupId   String @map("group_id") @db.Uuid
+  studentId String @map("student_id") @db.Uuid
+
+  group   ClassGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, studentId])
+  @@map("class_group_members")
+}
+
+model ClassSchedule {
+  id            String    @id @default(uuid()) @db.Uuid
+  classId       String    @map("class_id") @db.Uuid
+  /// 1 = Monday … 7 = Sunday
+  weekday       Int       @db.SmallInt
+  startTime     DateTime  @map("start_time") @db.Time(0)
+  endTime       DateTime  @map("end_time") @db.Time(0)
+  location      String?
+  effectiveFrom DateTime  @map("effective_from") @db.Date
+  effectiveTo   DateTime? @map("effective_to") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  class    Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  sessions ClassSession[]
+
+  @@index([classId])
+  @@map("class_schedules")
+}
+
+model ClassSession {
+  id         String        @id @default(uuid()) @db.Uuid
+  classId    String        @map("class_id") @db.Uuid
+  scheduleId String?       @map("schedule_id") @db.Uuid
+  startsAt   DateTime      @map("starts_at") @db.Timestamptz(6)
+  endsAt     DateTime      @map("ends_at") @db.Timestamptz(6)
+  status     SessionStatus @default(SCHEDULED)
+  topic      String?
+  note       String?
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  class      Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  schedule   ClassSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  attendance Attendance[]
+
+  @@unique([classId, startsAt])
+  @@index([startsAt])
+  @@map("class_sessions")
+}
+
+model Attendance {
+  id        String           @id @default(uuid()) @db.Uuid
+  sessionId String           @map("session_id") @db.Uuid
+  studentId String           @map("student_id") @db.Uuid
+  status    AttendanceStatus
+  note      String?
+  markedBy  String           @map("marked_by") @db.Uuid
+  markedAt  DateTime         @default(now()) @map("marked_at") @db.Timestamptz(6)
+
+  session ClassSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  student Student      @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  marker  User         @relation(fields: [markedBy], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, studentId])
+  @@index([studentId])
+  @@map("attendance")
+}
+
+// ───────────────────────────── Learning ─────────────────────────────
+
+model File {
+  id           String         @id @default(uuid()) @db.Uuid
+  storageKey   String         @unique @map("storage_key")
+  visibility   FileVisibility @default(PRIVATE)
+  kind         FileKind
+  originalName String         @map("original_name")
+  mimeType     String         @map("mime_type")
+  extension    String
+  sizeBytes    BigInt         @map("size_bytes")
+  sha256       String
+  durationSec  Int?           @map("duration_sec")
+  width        Int?
+  height       Int?
+  uploadedBy   String         @map("uploaded_by") @db.Uuid
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz(6)
+
+  uploader          User               @relation("FileUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+  userAvatars       User[]             @relation("UserAvatar")
+  teacherPhotos     Teacher[]          @relation("TeacherPhoto")
+  courseCovers      Course[]           @relation("CourseCover")
+  materials         LearningMaterial[]
+  audioLessons      AudioLesson[]      @relation("AudioFile")
+  audioCovers       AudioLesson[]      @relation("AudioCover")
+  questionMedia     Question[]
+  submissionFiles   SubmissionFile[]
+  postCovers        Post[]
+  testimonialPhotos Testimonial[]
+  galleryImages     GalleryImage[]
+
+  @@index([sha256])
+  @@index([uploadedBy])
+  @@map("files")
+}
+
+model LearningMaterial {
+  id                 String       @id @default(uuid()) @db.Uuid
+  title              String
+  description        String?
+  type               MaterialType
+  fileId             String?      @map("file_id") @db.Uuid
+  url                String?
+  skill              Skill?
+  tags               String[]     @default([])
+  ownerId            String       @map("owner_id") @db.Uuid
+  sharedWithTeachers Boolean      @default(true) @map("shared_with_teachers")
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt          DateTime?    @map("deleted_at") @db.Timestamptz(6)
+
+  file        File?              @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  owner       User               @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  attachments LessonAttachment[]
+
+  @@index([tags], type: Gin)
+  @@index([ownerId])
+  @@map("learning_materials")
+}
+
+model Lesson {
+  id           String       @id @default(uuid()) @db.Uuid
+  title        String
+  description  String?
+  content      Json?
+  skill        Skill        @default(GENERAL)
+  tags         String[]     @default([])
+  status       LessonStatus @default(DRAFT)
+  authorId     String       @map("author_id") @db.Uuid
+  copiedFromId String?      @map("copied_from_id") @db.Uuid
+  publishedAt  DateTime?    @map("published_at") @db.Timestamptz(6)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt    DateTime?    @map("deleted_at") @db.Timestamptz(6)
+
+  author       User               @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  copiedFrom   Lesson?            @relation("LessonCopies", fields: [copiedFromId], references: [id], onDelete: SetNull)
+  copies       Lesson[]           @relation("LessonCopies")
+  classes      LessonClass[]
+  attachments  LessonAttachment[]
+  audioLessons AudioLesson[]
+
+  @@index([authorId])
+  @@index([status])
+  @@map("lessons")
+}
+
+model LessonClass {
+  lessonId    String    @map("lesson_id") @db.Uuid
+  classId     String    @map("class_id") @db.Uuid
+  visibleFrom DateTime? @map("visible_from") @db.Timestamptz(6)
+  sortOrder   Int       @default(0) @map("sort_order")
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  class  Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@id([lessonId, classId])
+  @@index([classId])
+  @@map("lesson_classes")
+}
+
+model LessonAttachment {
+  id         String @id @default(uuid()) @db.Uuid
+  lessonId   String @map("lesson_id") @db.Uuid
+  materialId String @map("material_id") @db.Uuid
+  sortOrder  Int    @default(0) @map("sort_order")
+
+  lesson   Lesson           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  material LearningMaterial @relation(fields: [materialId], references: [id], onDelete: Restrict)
+
+  @@unique([lessonId, materialId])
+  @@map("lesson_attachments")
+}
+
+model AudioLesson {
+  id                String         @id @default(uuid()) @db.Uuid
+  lessonId          String         @map("lesson_id") @db.Uuid
+  title             String
+  instructions      Json?
+  audioFileId       String         @map("audio_file_id") @db.Uuid
+  coverFileId       String?        @map("cover_file_id") @db.Uuid
+  transcript        Json?
+  transcriptMode    TranscriptMode @default(AFTER_COMPLETE) @map("transcript_mode")
+  assignmentId      String?        @unique @map("assignment_id") @db.Uuid
+  completeThreshold Int            @default(90) @map("complete_threshold") @db.SmallInt
+  sortOrder         Int            @default(0) @map("sort_order")
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  lesson     Lesson          @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  audioFile  File            @relation("AudioFile", fields: [audioFileId], references: [id], onDelete: Restrict)
+  coverFile  File?           @relation("AudioCover", fields: [coverFileId], references: [id], onDelete: SetNull)
+  assignment Assignment?     @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  progress   AudioProgress[]
+
+  @@index([lessonId])
+  @@map("audio_lessons")
+}
+
+model AudioProgress {
+  audioLessonId String    @map("audio_lesson_id") @db.Uuid
+  studentId     String    @map("student_id") @db.Uuid
+  positionSec   Int       @default(0) @map("position_sec")
+  listenedSec   Int       @default(0) @map("listened_sec")
+  playCount     Int       @default(0) @map("play_count")
+  completedAt   DateTime? @map("completed_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  audioLesson AudioLesson @relation(fields: [audioLessonId], references: [id], onDelete: Cascade)
+  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([audioLessonId, studentId])
+  @@map("audio_progress")
+}
+
+// ───────────────────────────── Assignment ─────────────────────────────
+
+model Assignment {
+  id                  String           @id @default(uuid()) @db.Uuid
+  title               String
+  description         String?
+  instructions        Json?
+  kind                AssignmentKind   @default(QUIZ)
+  maxScore            Decimal          @default(10) @map("max_score") @db.Decimal(6, 2)
+  timeLimitMin        Int?             @map("time_limit_min")
+  maxAttempts         Int?             @default(1) @map("max_attempts")
+  allowLate           Boolean          @default(true) @map("allow_late")
+  answerReveal        AnswerReveal     @default(AFTER_DUE) @map("answer_reveal")
+  answersReleasedAt   DateTime?        @map("answers_released_at") @db.Timestamptz(6)
+  shuffleQuestions    Boolean          @default(false) @map("shuffle_questions")
+  shuffleOptions      Boolean          @default(false) @map("shuffle_options")
+  status              AssignmentStatus @default(DRAFT)
+  createdBy           String           @map("created_by") @db.Uuid
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt           DateTime?        @map("deleted_at") @db.Timestamptz(6)
+
+  creator     User                  @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  targets     AssignmentTarget[]
+  extensions  AssignmentExtension[]
+  questions   Question[]
+  submissions Submission[]
+  audioLesson AudioLesson?
+
+  @@index([status])
+  @@index([createdBy])
+  @@map("assignments")
+}
+
+/// CHECK constraint "assignment_targets_type_check" (columns match target_type) is created in SQL.
+model AssignmentTarget {
+  id           String     @id @default(uuid()) @db.Uuid
+  assignmentId String     @map("assignment_id") @db.Uuid
+  classId      String     @map("class_id") @db.Uuid
+  targetType   TargetType @map("target_type")
+  groupId      String?    @map("group_id") @db.Uuid
+  studentId    String?    @map("student_id") @db.Uuid
+  availableAt  DateTime   @map("available_at") @db.Timestamptz(6)
+  dueAt        DateTime?  @map("due_at") @db.Timestamptz(6)
+  closeAt      DateTime?  @map("close_at") @db.Timestamptz(6)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  assignment Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  class      Class       @relation(fields: [classId], references: [id], onDelete: Cascade)
+  group      ClassGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student    Student?    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId])
+  @@index([classId, availableAt])
+  @@index([studentId])
+  @@map("assignment_targets")
+}
+
+model AssignmentExtension {
+  id           String   @id @default(uuid()) @db.Uuid
+  assignmentId String   @map("assignment_id") @db.Uuid
+  studentId    String   @map("student_id") @db.Uuid
+  newDueAt     DateTime @map("new_due_at") @db.Timestamptz(6)
+  grantedBy    String   @map("granted_by") @db.Uuid
+  reason       String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  granter    User       @relation(fields: [grantedBy], references: [id], onDelete: Restrict)
+
+  @@unique([assignmentId, studentId])
+  @@map("assignment_extensions")
+}
+
+model Question {
+  id           String       @id @default(uuid()) @db.Uuid
+  assignmentId String       @map("assignment_id") @db.Uuid
+  type         QuestionType
+  prompt       Json
+  mediaFileId  String?      @map("media_file_id") @db.Uuid
+  points       Decimal      @default(1) @db.Decimal(6, 2)
+  config       Json         @default("{}")
+  explanation  Json?
+  sortOrder    Int          @default(0) @map("sort_order")
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  assignment Assignment         @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  media      File?              @relation(fields: [mediaFileId], references: [id], onDelete: SetNull)
+  options    QuestionOption[]
+  answers    SubmissionAnswer[]
+  files      SubmissionFile[]
+  feedback   Feedback[]
+
+  @@index([assignmentId, sortOrder])
+  @@map("questions")
+}
+
+model QuestionOption {
+  id              String     @id @default(uuid()) @db.Uuid
+  questionId      String     @map("question_id") @db.Uuid
+  content         Json
+  isCorrect       Boolean    @default(false) @map("is_correct")
+  matchSide       MatchSide? @map("match_side")
+  matchKey        String?    @map("match_key")
+  correctPosition Int?       @map("correct_position")
+  sortOrder       Int        @default(0) @map("sort_order")
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("question_options")
+}
+
+model Submission {
+  id           String           @id @default(uuid()) @db.Uuid
+  assignmentId String           @map("assignment_id") @db.Uuid
+  studentId    String           @map("student_id") @db.Uuid
+  classId      String           @map("class_id") @db.Uuid
+  attemptNo    Int              @map("attempt_no")
+  status       SubmissionStatus @default(IN_PROGRESS)
+  startedAt    DateTime         @default(now()) @map("started_at") @db.Timestamptz(6)
+  deadlineAt   DateTime?        @map("deadline_at") @db.Timestamptz(6)
+  submittedAt  DateTime?        @map("submitted_at") @db.Timestamptz(6)
+  isLate       Boolean          @default(false) @map("is_late")
+  autoScore    Decimal?         @map("auto_score") @db.Decimal(6, 2)
+  finalScore   Decimal?         @map("final_score") @db.Decimal(6, 2)
+  version      Int              @default(0)
+  lastSavedAt  DateTime         @default(now()) @map("last_saved_at") @db.Timestamptz(6)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  assignment Assignment         @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  student    Student            @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  class      Class              @relation(fields: [classId], references: [id], onDelete: Restrict)
+  answers    SubmissionAnswer[]
+  files      SubmissionFile[]
+  grades     Grade[]
+  feedback   Feedback[]
+
+  @@unique([assignmentId, studentId, attemptNo])
+  @@index([studentId, status])
+  @@index([assignmentId, status])
+  @@map("submissions")
+}
+
+model SubmissionAnswer {
+  id           String   @id @default(uuid()) @db.Uuid
+  submissionId String   @map("submission_id") @db.Uuid
+  questionId   String   @map("question_id") @db.Uuid
+  answer       Json?
+  isCorrect    Boolean? @map("is_correct")
+  autoPoints   Decimal? @map("auto_points") @db.Decimal(6, 2)
+  manualPoints Decimal? @map("manual_points") @db.Decimal(6, 2)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question   Question   @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([submissionId, questionId])
+  @@map("submission_answers")
+}
+
+model SubmissionFile {
+  id           String   @id @default(uuid()) @db.Uuid
+  submissionId String   @map("submission_id") @db.Uuid
+  questionId   String?  @map("question_id") @db.Uuid
+  fileId       String   @map("file_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question   Question?  @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  file       File       @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@index([submissionId])
+  @@map("submission_files")
+}
+
+/// Append-only grading history. Partial unique index "grades_current_unique" on (submission_id) WHERE is_current is created in SQL.
+model Grade {
+  id           String      @id @default(uuid()) @db.Uuid
+  submissionId String      @map("submission_id") @db.Uuid
+  score        Decimal     @db.Decimal(6, 2)
+  maxScore     Decimal     @map("max_score") @db.Decimal(6, 2)
+  source       GradeSource
+  gradedBy     String?     @map("graded_by") @db.Uuid
+  reason       String?
+  isCurrent    Boolean     @default(true) @map("is_current")
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  grader     User?      @relation(fields: [gradedBy], references: [id], onDelete: SetNull)
+
+  @@index([submissionId])
+  @@map("grades")
+}
+
+model Feedback {
+  id              String   @id @default(uuid()) @db.Uuid
+  studentId       String   @map("student_id") @db.Uuid
+  classId         String   @map("class_id") @db.Uuid
+  submissionId    String?  @map("submission_id") @db.Uuid
+  questionId      String?  @map("question_id") @db.Uuid
+  authorId        String   @map("author_id") @db.Uuid
+  content         String
+  needsRevision   Boolean  @default(false) @map("needs_revision")
+  visibleToParent Boolean  @default(true) @map("visible_to_parent")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  student    Student     @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  class      Class       @relation(fields: [classId], references: [id], onDelete: Restrict)
+  submission Submission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question   Question?   @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  author     User        @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([studentId, createdAt])
+  @@map("feedback")
+}
+
+// ───────────────────────────── System ─────────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String
+  body      String?
+  link      String?
+  data      Json?
+  dedupeKey String?          @map("dedupe_key")
+  readAt    DateTime?        @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, dedupeKey])
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model Announcement {
+  id          String    @id @default(uuid()) @db.Uuid
+  classId     String?   @map("class_id") @db.Uuid
+  authorId    String    @map("author_id") @db.Uuid
+  title       String
+  content     Json
+  isPinned    Boolean   @default(false) @map("is_pinned")
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  class  Class? @relation(fields: [classId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([classId, publishedAt])
+  @@map("announcements")
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  metadata   Json?
+  ip         String?
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?  @map("updated_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  updater User? @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@map("system_settings")
+}
+
+model RateLimitBucket {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime @map("window_start") @db.Timestamptz(6)
+
+  @@index([windowStart])
+  @@map("rate_limit_buckets")
+}
+
+// ───────────────────────────── Public / CMS ─────────────────────────────
+
+model Post {
+  id             String        @id @default(uuid()) @db.Uuid
+  slug           String        @unique
+  title          String
+  excerpt        String?
+  content        Json?
+  coverFileId    String?       @map("cover_file_id") @db.Uuid
+  category       String?
+  tags           String[]      @default([])
+  status         PublishStatus @default(DRAFT)
+  publishedAt    DateTime?     @map("published_at") @db.Timestamptz(6)
+  authorId       String        @map("author_id") @db.Uuid
+  seoTitle       String?       @map("seo_title")
+  seoDescription String?       @map("seo_description")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz(6)
+
+  cover  File? @relation(fields: [coverFileId], references: [id], onDelete: SetNull)
+  author User  @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([status, publishedAt])
+  @@map("posts")
+}
+
+model Testimonial {
+  id          String   @id @default(uuid()) @db.Uuid
+  displayName String   @map("display_name")
+  roleLabel   String?  @map("role_label")
+  content     String
+  rating      Int?     @db.SmallInt
+  photoFileId String?  @map("photo_file_id") @db.Uuid
+  isPublished Boolean  @default(false) @map("is_published")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  photo File? @relation(fields: [photoFileId], references: [id], onDelete: SetNull)
+
+  @@map("testimonials")
+}
+
+/// CHECK constraint "gallery_images_consent_check" (published ⇒ consent_confirmed) is created in SQL.
+model GalleryImage {
+  id               String    @id @default(uuid()) @db.Uuid
+  fileId           String    @map("file_id") @db.Uuid
+  caption          String?
+  album            String?
+  takenOn          DateTime? @map("taken_on") @db.Date
+  consentConfirmed Boolean   @default(false) @map("consent_confirmed")
+  isPublished      Boolean   @default(false) @map("is_published")
+  sortOrder        Int       @default(0) @map("sort_order")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  file File @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@map("gallery_images")
+}
+
+model Inquiry {
+  id            String        @id @default(uuid()) @db.Uuid
+  type          InquiryType
+  fullName      String        @map("full_name")
+  phone         String
+  email         String?
+  learnerAge    Int?          @map("learner_age")
+  courseId      String?       @map("course_id") @db.Uuid
+  preferredTime String?       @map("preferred_time")
+  message       String?
+  status        InquiryStatus @default(NEW)
+  handledBy     String?       @map("handled_by") @db.Uuid
+  internalNote  String?       @map("internal_note")
+  ipHash        String?       @map("ip_hash")
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  course  Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  handler User?   @relation(fields: [handledBy], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@map("inquiries")
+}
